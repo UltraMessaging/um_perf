@@ -4,8 +4,10 @@
 *.o
 x.*
 *.log
-smx_perf_pub
-smx_perf_sub
+um_perf_jitter
+usb_perf
+um_perf_pub
+um_perf_sub
 
 # UM-specific overhead files
 labbox.sh
