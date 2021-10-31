@@ -1,4 +1,4 @@
-# ump_perf - test programs to measure the performance of Ultra Messaging's persistence product.
+# um_perf - test programs to measure the performance of Ultra Messagingj.
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -27,62 +27,57 @@ THE LIKELIHOOD OF SUCH DAMAGES.
 
 ## REPOSITORY
 
-See https://github.com/UltraMessaging/ump_perf for code and documentation.
+See https://github.com/UltraMessaging/um_perf for code and documentation.
 
 ## RESULTS
 
 Informatica used the tools in this repository to measure the
-performance of the SMX transport.
+maximum-sustainable message rate for streaming and persistent sources.
 
+The Informatica Ultra Messaging computer lab has some fast machines,
+but not enough to run a single representative test of Persistence.
+That requires 5 fast machines in total, three with fast disks.
+But the UM lab only has one machine with a fast disk.
+
+So we devised a series of tests to estimate the performance of a
+properly-provisioned lab using a minimally-provisioned lab.
+
+Here are the persistence tests:
+1. Single source, single SPP-based Store, single receiver.
+This characterizes a single store's performance (throughput).
+2. Single source, single RPP-based Store, single receiver.
+This allows us to compare SPP to RPP. For the hardware we used,
+RPP was a little faster than SPP.
+3. Single source, three RPP-based Store quorum/consensus, single receiver.
+This allows us to measure the impact of a 3-Store Q/C group compared to
+a single-store Q/C group.
+4. Three sources (single sending thread), three RPP-based Stores
+(one per source), three receivers (single receiver thread).
+This demonstrates balancing the load across multiple Stores.
+
+Note that the comparisons will be *very* dependent on the underlying
+hardware (server and disk).
+Users are strongly advised to perform the same tests on hardware that
+is as close as possible to their anticipated production hardware.
+
+Finally, note that many users choose SSD disks for their high performance.
+And while it is true that SSDs eliminate the "seek time" that can severely
+limit spinning disk performance,
+standard SSDs are typically "optimized for read",
+meaning that their write speeds will often be significantly lower than
+cheaper spinning disk write speeds.
+Informatica strongly recommends selecting SSDs for persistent Stores that
+are "optimized for write".
+
+All tests were performed with 700-byte messages that are flushed
+(no batching).
+UM Smart Sources and Xilinx 10-gig NICs with Onload kernel-bypass
+drivers were used on all machines.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
 
-The SMX transport's maximum sustainable message rate (throughput) speed is
-very dependent on the speed of the CPU and the bandwidth to and from memory.
-Note that the highest performance can often be seen on hosts with
-a single CPU chip and a single NUMA node.
-However, we feel that this is not representative of the types of hosts
-our users have access to,
-so we chose a host with two CPU chips and two NUMA nodes.
-See [Informatica Test Hardware](#informatica-test-hardware) for detailed
-specs on our test host.
-
 Maximum Sustainable Message Rate:
-* 14M msgs/sec.
-* We tested with a variety of message sizes, from 100 bytes to 1500 bytes.
-The results were mostly independent of messages size.
-Under special circumstances, much higher throughput can be measured
-(e.g. over 100M msgs/sec).
-However, this cannot be counted on; see
-[Measurement Outliers](#measurement-outliers).
-
-Latencies:
-* 70-100 ns
-* We tested with a variety of message sizes, from 100 bytes to 1500 bytes.
-The results were mostly independent of messages size.
-* We tested with a range of message rates, from 250K msgs/sec to
-10M msgs/sec.
-The results were mostly independent of message rate.
-
-Cross-NUMA access is much slower.
-Keep senders and receivers in the same NUMA node if possible.
-* Max sustainable message rate less than half: ~4M msgs/sec.
-* Latencies more than double: 140-300 ns.
-
-Slow receivers slow down the source to match the receiver speed.
-* When SMX buffer fills,
-the next buffer acquisition will busy-loop until the receiver consumes.
-* If multiple receivers, *all* must consume before the sender can resume.
-All receivers get all messages.
-
-Multiple receivers slow SMX down a little.
-* Maximum sustainable message rate with two or three receivers: 11M msgs/sec.
-* As above, mostly independent of message size.
-* Latencies only slightly elevated.
-* As above, mostly independent of message size and message rate.
-
-See [infa_measurements.csv](infa_measurements.csv) for the full dataset
-of measurements taken by Informatica.
+tbd
 
 ## REPRODUCE RESULTS
 
@@ -97,7 +92,7 @@ export LD_LIBRARY_PATH=$LBM/lib
 ````
 
 Furthermore, it is assumed that the "PATH" environment variable includes
-the path to the directory containing the "ump_perf_pub" and "ump_perf_sub"
+the path to the directory containing the "um_perf_pub" and "um_perf_sub"
 executables that you build.
 
 Finally, the "taskset" command is used to run the test programs,
@@ -109,14 +104,17 @@ See [Affinity](#affinity).
 
 ### Requirements
 
-1. Linux-based server (X86, 84-bit, 4 cores or more, hyperthreading turned off,
-8 gigabytes or more memory.
+1. 3 Linux-based servers (X86, 64-bit).
+One should have at least 6 cores per NUMA node,
+hyperthreading turned off,
+16 gigabytes or more memory
+and a very fast disk.
 2. C compiler (gcc) and related tools.
 3. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).
 
 See [Test Hardware](#informatica-test-hardware) for details of Informatica's
-test host.
+test hosts.
 
 ### Choose CPUs
 
@@ -156,15 +154,15 @@ The standard UM example applications were not designed to measure the maximum
 sustainable message rate for SMX, or message latency under load.
 
 A new pair of tools were written:
-* ump_perf_pub - publisher (source).
-* ump_perf_sub - subscriber (receiver).
+* um_perf_pub - publisher (source).
+* um_perf_sub - subscriber (receiver).
 
 The source code for these tools can be found in the GitHub repository
-"ump_perf" at: https://github.com/UltraMessaging/ump_perf
+"um_perf" at: https://github.com/UltraMessaging/um_perf
 
 The files can be obtained by cloning the repository using "git" or
 [GitHub Desktop](https://desktop.github.com), or by browsing to
-https://github.com/UltraMessaging/ump_perf and clicking the green "Code"
+https://github.com/UltraMessaging/um_perf and clicking the green "Code"
 button (select "Download ZIP").
 
 To build the tools, the shell script "bld.sh" should be modified.
@@ -184,7 +182,7 @@ update the "PATH" environment variable to include the
 directory containing these executables.
 For example:
 ````
-export PATH="$HOME/ump_perf:$PATH"
+export PATH="$HOME/um_perf:$PATH"
 ````
 
 ### Update Configuration File
@@ -236,14 +234,14 @@ of lines displayed.
 While a test is running, CPU 5 is receiving, and CPU 7 is sending.
 Typically, both will be at 100% user mode CPU utilization.
 
-***Window 2***: run "taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000".
+***Window 2***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000".
 Substitute the "-a 1" and the "-a 7" with the non-time-critical and
 time-critical CPUs you previously chose.
 For example:
 ````
-taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000
+taskset -a 1 um_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000
 Core-7911-1: Onload extensions API has been dynamically loaded
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=1000000000, o_linger_ms=2000, o_msg_len=25, o_num_msgs=1000000, o_rate=100000, o_topic='ump_perf', o_warmup_loops=10000,
+o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=1000000000, o_linger_ms=2000, o_msg_len=25, o_num_msgs=1000000, o_rate=100000, o_topic='um_perf', o_warmup_loops=10000,
 ts_min_ns=12, ts_max_ns=365127,
 ````
 
@@ -264,30 +262,30 @@ of lines displayed.
 While a test is running, CPU 5 is receiving, and CPU 7 is sending.
 Typically, both will be at 100% user mode CPU utilization.
 
-***Window 2***: run "taskset -a 1 ump_perf_sub -c ump.cfg -a 5 -f".
+***Window 2***: run "taskset -a 1 um_perf_sub -c ump.cfg -a 5 -f".
 Substitute the "-a 1" and the "-a 5" with the non-time-critical and
 time-critical CPUs you previously chose.
 For example:
 ````
-taskset -a 1 ump_perf_sub -c ump.cfg -a 5 -f
+taskset -a 1 um_perf_sub -c ump.cfg -a 5 -f
 Core-7911-1: Onload extensions API has been dynamically loaded
 Core-9401-4: WARNING: default_interface for a context should be set to a valid network interface.
 Core-5688-1833: WARNING: Host has multiple multicast-capable interfaces; going to use [enp5s0f1np1][10.29.4.52].
 Core-10403-150: Context (0x1f47a10) created with ContextID (2599490123) and ContextName [(NULL)]
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=1, o_spin_cnt=0, o_topic='ump_perf',
+o_affinity_cpu=5, o_config=ump.cfg, o_fast=1, o_spin_cnt=0, o_topic='um_perf',
 ````
 
-***Window 3***: run "taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000".
+***Window 3***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000".
 Substitute the "-a 1" and the "-a 7" with the non-time-critical and
 time-critical CPUs you previously chose.
 For example:
 ````
-$ taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000
+$ taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000
 Core-7911-1: Onload extensions API has been dynamically loaded
 Core-9401-4: WARNING: default_interface for a context should be set to a valid network interface.
 Core-5688-1833: WARNING: Host has multiple multicast-capable interfaces; going to use [enp5s0f1np1][10.29.4.52].
 Core-10403-150: Context (0x1879a10) created with ContextID (2001452034) and ContextName [(NULL)]
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=25, o_num_msgs=100000000, o_rate=999999999, o_topic='ump_perf', o_warmup_loops=10000,
+o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=25, o_num_msgs=100000000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
 actual_sends=100000000, duration_ns=5045650145, result_rate=19819051.485188,
 25,100010000,19819051.485188
 ````
@@ -296,7 +294,7 @@ rate of 19.8M msgs/sec.
 
 Wait 5 seconds after the publisher completes, and Window 2 will display:
 ````
-rcv event EOS, 'ump_perf', LBT-SMX:aa44d3c:12001[3393948135], num_rcv_msgs=100010000,
+rcv event EOS, 'um_perf', LBT-SMX:aa44d3c:12001[3393948135], num_rcv_msgs=100010000,
 ````
 Note that the total messages are equal to the requested messages (o_num_msgs)
 plus the warmup messages (o_warmup_loops).
@@ -353,20 +351,20 @@ to ["memory contention"](#memory-contention-and-cache-invalidation).
 In window 2, restart the subscriber, replacing the "-f" option with "-s 4".
 For example:
 ````
-taskset -a 1 ump_perf_sub -c ump.cfg -a 5 -s 4
+taskset -a 1 um_perf_sub -c ump.cfg -a 5 -s 4
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=4, o_topic='ump_perf',
+o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=4, o_topic='um_perf',
 ...
 ````
 
 Then in window 3, re-run the publisher with 64-byte messages.
 For example:
 ````
-taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 64 -r 999999999 -n 100000000
+taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 64 -r 999999999 -n 100000000
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=64, o_num_msgs=100000000, o_rate=999999999, o_topic='ump_perf', o_warmup_loops=10000,
+o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=64, o_num_msgs=100000000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
 actual_sends=100000000, duration_ns=1250518159, result_rate=79966851.564928,
 64,100010000,4,79966851.564928
 ````
@@ -397,20 +395,20 @@ You can slow down the receiver by replacing the "-f" option with
 In window 2, restart the subscriber, replacing the "-f" option with "-s 10000".
 For example:
 ````
-taskset -a 1 ump_perf_sub -c ump.cfg -a 5 -s 10000
+taskset -a 1 um_perf_sub -c ump.cfg -a 5 -s 10000
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=10000, o_topic='ump_perf',
+o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=10000, o_topic='um_perf',
 ...
 ````
 
 Then in window 3, re-run the publisher with 200K 128-byte messages.
 For example:
 ````
-taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 128 -r 999999999 -n 200000
+taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 128 -r 999999999 -n 200000
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=128, o_num_msgs=200000, o_rate=999999999, o_topic='ump_perf', o_warmup_loops=10000,
+o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=128, o_num_msgs=200000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
 actual_sends=200000, duration_ns=2703074933, result_rate=73989.809738,
 ````
 
@@ -427,33 +425,33 @@ This displays per-CPU statistics.
 It may be helpful to expand this window vertically to maximize the number
 of lines displayed.
 
-***Window 2***: run "taskset -a 1 ump_perf_sub -c ump.cfg -a 5".
+***Window 2***: run "taskset -a 1 um_perf_sub -c ump.cfg -a 5".
 Substitute the "-a 1" and the "-a 5" with the non-time-critical and
 time-critical CPUs you previously chose.
 For example:
 ````
-taskset -a 1 ump_perf_sub -c ump.cfg -a 5
+taskset -a 1 um_perf_sub -c ump.cfg -a 5
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=0, o_topic='ump_perf',
+o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=0, o_topic='um_perf',
 ````
 
-***Window 3***: run "taskset -a 1 ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000".
+***Window 3***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000".
 Substitute the "-a 1" and the "-a 7" with the non-time-critical and
 time-critical CPUs you previously chose.
 For example:
 ````
-$ taskset -a 1 /home/sford/GitHub/ump_perf/ump_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000
+$ taskset -a 1 /home/sford/GitHub/um_perf/um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000
 Core-7911-1: Onload extensions API has been dynamically loaded
 ...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x03, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=100, o_num_msgs=2500000, o_rate=250000, o_topic='ump_perf', o_warmup_loops=10000,
+o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x03, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=100, o_num_msgs=2500000, o_rate=250000, o_topic='um_perf', o_warmup_loops=10000,
 actual_sends=2500000, duration_ns=9999997986, result_rate=250000.050350,
 ````
 This run took 10 seconds to send 2.5M 100-byte message at 250K msgs/sec.
 
 Wait 5 seconds after the publisher completes, and Window 2 will display:
 ````
-rcv event EOS, 'ump_perf', LBT-SMX:7001139a:12001[1912960237], num_rcv_msgs=2510000, min_latency=128, max_latency=205974, average latency=156,
+rcv event EOS, 'um_perf', LBT-SMX:7001139a:12001[1912960237], num_rcv_msgs=2510000, min_latency=128, max_latency=205974, average latency=156,
 ````
 
 Most of the latencies will be close to 128.
@@ -505,10 +503,10 @@ increases.
 
 ## TOOL USAGE NOTES
 
-### ump_perf_pub
+### um_perf_pub
 
 ````
-Usage: ump_perf_pub [-h] [-a affinity_cpu] [-c config] [-f flags]
+Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-f flags]
     [-j jitter_loops] [-l linger_ms] [-m msg_len] [-n num_msgs]
     [-r rate] [-t topic] [-w warmup_loops]
 where:
@@ -532,7 +530,7 @@ where:
 The "-a" command-line option is used to specify the CPU core number
 to use for the time-critical thread.
 
-For the publisher (ump_perf_pub.c),
+For the publisher (um_perf_pub.c),
 the time-critical thread is the "main" thread,
 since that is the thread that sends the messages.
 The publisher program is typically started with affinity set to a
@@ -543,7 +541,7 @@ Then, before it starts sending messages,
 it sets affinity to the CPU core number specified with the "-a"
 command-line option.
 
-For the subscriber (ump_perf_sub.c),
+For the subscriber (um_perf_sub.c),
 the time-critical thread is the SMX receiver thread.
 As with the publisher program,
 the subscriber program is typically started with affinity set to a
@@ -561,7 +559,7 @@ and therefore never has an SMX receiver thread.
 
 #### Jitter Measurement
 
-The "-j jitter_loops" command-line option changes ump_perf_sub's function.
+The "-j jitter_loops" command-line option changes um_perf_sub's function.
 It does not send any messages.
 
 Instead, it produces a rough measure of system-induced outliers (jitter).
@@ -626,10 +624,10 @@ the CPU caches loaded.
 The execution of those initial warmup loops is not included in the
 performance measurements.
 
-### ump_perf_sub
+### um_perf_sub
 
 ````
-Usage: ump_perf_sub [-h] [-a affinity_cpu] [-c config] [-f]
+Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-f]
     [-s spin_cnt] [-t topic]
 where:
   -a affinity_cpu : CPU number (0..N-1) for SMX receive thread [%d]
@@ -736,7 +734,7 @@ resulting in a baseline throughput.
 
 Now let's modify the situation.
 Let's add a little bit of work in the subscriber's receiver callback.
-In the "ump_perf_sub" program, this is simply an empty "for" loop that
+In the "um_perf_sub" program, this is simply an empty "for" loop that
 spins a requested number of times (see the
 ["-s spin_cnt"](#spin-count) command-line option).
 If the receiver spins only three times for each received message,
@@ -769,7 +767,7 @@ We attempt to explain some of the "why"s of non-obvious parts of the code.
 Informatica strongly advises users to check return status for errors after
 every UM API call.
 As this can clutter the source code, making it harder to read,
-the "ump_perf_pub.c" and "ump_perf_sub.c" programs use a code macro called
+the "um_perf_pub.c" and "um_perf_sub.c" programs use a code macro called
 "E()" to make the handling of UM API errors uniform and non-intrusive.
 For example:
 ````C
@@ -823,7 +821,7 @@ DIFF_TS(duration_ns, end_ts, start_ts);
 
 ### send_loop()
 
-The "send_loop()" function in "ump_perf_pub.c" does the work of
+The "send_loop()" function in "um_perf_pub.c" does the work of
 sending messages at the desired rate.
 It is designed to "busy-loop" between sends so that the time spacing between
 messages is as constant and uniform as possible.
