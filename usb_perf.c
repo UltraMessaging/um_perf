@@ -168,4 +168,6 @@ int main(int argc, char **argv)
 
   E(lbm_ssrc_delete(ssrc));
   E(lbm_context_delete(ctx));
+
+  return 0;
 }  /* main */

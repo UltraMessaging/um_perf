@@ -1,16 +1,16 @@
 <ume-store version="1.3">
   <daemon>
-    <web-monitor>*:12011</web-monitor>
-    <log type="file">/home/tmp/sford/store_1a.log</log>
+    <web-monitor>*:12013</web-monitor>
+    <log type="file">/home/tmp/sford/store_1c.log</log>
     <xml-config>um.xml</xml-config>
   </daemon>
 
   <stores>
-    <store name="store_a_topic1" interface="10.29.4.0/24" port="12001">
+    <store name="store_c_topic1" interface="10.29.4.0/24" port="12003">
     <ume-attributes>
-      <option type="store" name="disk-cache-directory" value="/home/tmp/sford/cache1a"/>
-      <option type="store" name="disk-state-directory" value="/home/tmp/sford/state1a"/>
-      <option type="store" name="context-name" value="store_a_topic1"/>
+      <option type="store" name="disk-cache-directory" value="/home/tmp/sford/cache1c"/>
+      <option type="store" name="disk-state-directory" value="/home/tmp/sford/state1c"/>
+      <option type="store" name="context-name" value="store_c_topic1"/>
     </ume-attributes>
       <topics>
         <topic pattern="topic1" type="direct">

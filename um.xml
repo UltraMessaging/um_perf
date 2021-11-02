@@ -96,6 +96,16 @@
                 <option name="ume_store_name" default-value="store_a_topic3"/>
               </options>
             </topic>
+            <topic topicname="topic1abc">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_repository_ack_on_reception" default-value="1"/>
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+                <option name="ume_store_name" default-value="store_b_topic1"/>
+                <option name="ume_store_name" default-value="store_c_topic1"/>
+              </options>
+            </topic>
           </sources>
           <receivers>
             <topic pattern=".*">
@@ -128,6 +138,14 @@
               <options type="source">
                 <option name="transport_lbtrm_multicast_address" default-value="239.101.3.4"/>
                 <option name="ume_store_name" default-value="store_a_topic3"/>
+              </options>
+            </topic>
+            <topic topicname="topic1abc">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+                <option name="ume_store_name" default-value="store_b_topic1"/>
+                <option name="ume_store_name" default-value="store_c_topic1"/>
               </options>
             </topic>
           </sources>

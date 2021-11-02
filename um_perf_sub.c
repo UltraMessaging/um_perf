@@ -251,4 +251,6 @@ int main(int argc, char **argv)
   sleep(2000000000);  /* 23+ centuries. */
 
   /* Should delete receivers and context. */
+
+  return 0;
 }  /* main */
