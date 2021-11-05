@@ -40,20 +40,35 @@ That requires 5 fast machines in total, three with fast disks.
 But the UM lab only has one machine with a fast disk.
 
 So we devised a series of tests to estimate the performance of a
-properly-provisioned lab using a minimally-provisioned lab.
+fully-provisioned production datacenter using a minimally-provisioned lab.
 
 Here are the persistence tests:
-1. Single source, single SPP-based Store, single receiver.
-This characterizes a single store's performance (throughput).
-2. Single source, single RPP-based Store, single receiver.
+1. Single source, single receiver, streaming (no Store).
+2. Single source, single SPP-based Store, single receiver.
+This characterizes a single disk-based store's performance (throughput).
+3. Single source, single RPP-based Store, single receiver.
 This allows us to compare SPP to RPP. For the hardware we used,
-RPP was a little faster than SPP.
-3. Single source, three RPP-based Store quorum/consensus, single receiver.
+RPP is 15% faster than SPP.
+4. Single source, three RPP-based Stores in quorum/consensus, single receiver.
 This allows us to measure the impact of a 3-Store Q/C group compared to
 a single-store Q/C group.
-4. Three sources (single sending thread), three RPP-based Stores
+5. Three sources (single sending thread), three RPP-based Stores
 (one per source), three receivers (single receiver thread).
-This demonstrates balancing the load across multiple Stores.
+This demonstrates balancing the load across multiple Stores
+(each Store only sees one third of the messages).
+6. Three sources (single sending thread), streaming (no Store).
+This demonstrates that sending to three streaming sources can send almost as
+fast as a single streaming source.
+
+The method of discovering the maximun sustainable throughput is
+to run a publisher at a given message rate for at least 1 minute
+and check for failure indications. If the test succeeds,
+repeat with a higher message rate.
+When a test fails,
+the message rate is decreased and the test is repeated.
+(A test is said to have "failed" if any component has packet loss,
+or if the publisher exhausts flight size
+(LBM_EWOULDBLOCK send error) due exceeding the disk write speed.)
 
 Note that the comparisons will be *very* dependent on the underlying
 hardware (server and disk).
@@ -71,13 +86,21 @@ are "optimized for write".
 
 All tests were performed with 700-byte messages that are flushed
 (no batching).
-UM Smart Sources and Xilinx 10-gig NICs with Onload kernel-bypass
-drivers were used on all machines.
+UM Smart Sources and Xilinx (formerly Solarflare) 10-gig NICs with
+Onload kernel-bypass drivers were used on all machines.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
 
-Maximum Sustainable Message Rate:
-tbd
+### Test Results
+
+Test | Message Rate | Summary
+---- | ------------ | ------------
+1 | 1.5M | Streaming (no Stores)
+2 | 750K | 1 SPP Store (disk-based)
+3 | 860K | 1 RPP Store
+4 | 830K | 3 RPP Stores (Q/C)
+5 | 1.07M | 3 sources, load balanced
+6 | 1.4M | 3 streaming sources (no Stores)
 
 ## REPRODUCE RESULTS
 
@@ -92,7 +115,7 @@ export LD_LIBRARY_PATH=$LBM/lib
 ````
 
 Furthermore, it is assumed that the "PATH" environment variable includes
-the path to the directory containing the "um_perf_pub" and "um_perf_sub"
+the path to the directory containing the um_perf
 executables that you build.
 
 Finally, the "taskset" command is used to run the test programs,
@@ -102,13 +125,16 @@ The test programs use the "-a" command-line option to change the affinity
 of the time-critical threads to the time-critical CPUs.
 See [Affinity](#affinity).
 
+NOTE: the "taskset" command expects a bitmap of CPUs, with 0x01 representing
+CPU number 0, 0x02 representing CPU 1, 0x04 representing CPU 2, etc.
+The um_perf tools expect the actual CPU number.
+
 ### Requirements
 
-1. 3 Linux-based servers (X86, 64-bit).
-One should have at least 6 cores per NUMA node,
+1. 5 Linux-based servers (X86, 64-bit).
 hyperthreading turned off,
-16 gigabytes or more memory
-and a very fast disk.
+16 gigabytes or more memory.
+At least one must have a fast disk.
 2. C compiler (gcc) and related tools.
 3. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).

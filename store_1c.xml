@@ -1,7 +1,7 @@
 <ume-store version="1.3">
   <daemon>
     <web-monitor>*:12013</web-monitor>
-    <log type="file">/home/tmp/sford/store_1c.log</log>
+    <log type="console"></log>
     <xml-config>um.xml</xml-config>
   </daemon>
 
