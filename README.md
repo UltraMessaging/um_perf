@@ -396,7 +396,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host 2 (publisher):
 ````
@@ -434,7 +433,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host 2 (publisher):
 ````
@@ -472,7 +470,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host S2 (Store):
 ````
@@ -486,7 +483,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host S3 (Store):
 ````
@@ -500,7 +496,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host 2 (publisher):
 ````
@@ -539,7 +534,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host S2 (Store):
 ````
@@ -553,7 +547,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host S3 (Store):
 ````
@@ -567,7 +560,6 @@ a message of the form "Store-5688-5285: store "..." topic "..." deleted").
 If this is the first test run after the Store's startup,
 there might be unrecoverable loss due to insufficient "warmup" of the Store.
 Repeat the test.
-See [Store Warmup](#store-warmup).
 
 Host 2 (publisher):
 ````
@@ -875,42 +867,205 @@ hasn't yet gotten caught up.
 
 ## INFORMATICA TEST HARDWARE
 
-Here are command excerpts that document the host used to
+Here are command excerpts that document the hosts used to
 perform the in-house measurements.
 
+### Host 1
+
+Host 1 - subscriber
+
 ````
-$ lscpu
+crush:um_perf$ lscpu
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                12
+On-line CPU(s) list:   0-11
+Thread(s) per core:    1
+Core(s) per socket:    6
+Socket(s):             2
+NUMA node(s):          2
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 79
+Model name:            Intel(R) Xeon(R) CPU E5-2643 v4 @ 3.40GHz
+Stepping:              1
+CPU MHz:               1199.960
+BogoMIPS:              6804.84
+Virtualization:        VT-x
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              256K
+L3 cache:              20480K
+NUMA node0 CPU(s):     0,2,4,6,8,10
+NUMA node1 CPU(s):     1,3,5,7,9,11
+...
+
+crush:um_perf$ vmstat -s
+     65689948 K total memory
+...
+
+crush:um_perf$ cat /etc/centos-release
+CentOS Linux release 7.3.1611 (Core)
+````
+
+### Host 2
+
+Host 2 - publisher
+
+````
+hal:um_perf$ lscpu
 Architecture:        x86_64
 CPU op-mode(s):      32-bit, 64-bit
 Byte Order:          Little Endian
-CPU(s):              12
-On-line CPU(s) list: 0-11
+CPU(s):              16
+On-line CPU(s) list: 0-15
+Thread(s) per core:  2
+Core(s) per socket:  8
+Socket(s):           1
+NUMA node(s):        1
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               85
+Model name:          Intel(R) Core(TM) i7-9800X CPU @ 3.80GHz
+Stepping:            4
+CPU MHz:             3421.062
+CPU max MHz:         4500.0000
+CPU min MHz:         1200.0000
+BogoMIPS:            7600.00
+Virtualization:      VT-x
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            1024K
+L3 cache:            16896K
+NUMA node0 CPU(s):   0-15
+...
+
+hal:um_perf$ vmstat -s
+     32465552 K total memory
+...
+
+hal:um_perf$ cat /etc/centos-release
+CentOS Linux release 8.1.1911 (Core)
+````
+
+### Host S1
+
+Host S1 - Store
+
+````
+zeus:um_perf$ lscpu
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              32
+On-line CPU(s) list: 0-31
 Thread(s) per core:  1
-Core(s) per socket:  6
+Core(s) per socket:  16
 Socket(s):           2
 NUMA node(s):        2
 Vendor ID:           GenuineIntel
 CPU family:          6
-Model:               79
-Model name:          Intel(R) Xeon(R) CPU E5-2643 v4 @ 3.40GHz
-Stepping:            1
-CPU MHz:             1507.237
-CPU max MHz:         3700.0000
+Model:               85
+Model name:          Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
+Stepping:            7
+CPU MHz:             3146.526
+CPU max MHz:         3900.0000
 CPU min MHz:         1200.0000
-BogoMIPS:            6800.30
+BogoMIPS:            5600.00
 Virtualization:      VT-x
 L1d cache:           32K
 L1i cache:           32K
-L2 cache:            256K
-L3 cache:            20480K
-NUMA node0 CPU(s):   0,2,4,6,8,10
-NUMA node1 CPU(s):   1,3,5,7,9,11
+L2 cache:            1024K
+L3 cache:            22528K
+NUMA node0 CPU(s):   0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30
+NUMA node1 CPU(s):   1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31
 ...
 
-$ vmstat -s
-     65608176 K total memory
+zeus:um_perf$ vmstat -s
+     65234840 K total memory
 ...
 
-$ cat /etc/centos-release
-CentOS Linux release 8.0.1905 (Core)
+zeus:um_perf$ cat /etc/centos-release
+CentOS Linux release 8.2.2004 (Core)
+````
+
+### Host S2
+
+Host S2 - Store
+
+````
+jarvis:um_perf$ lscpu
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              16
+On-line CPU(s) list: 0-15
+Thread(s) per core:  2
+Core(s) per socket:  8
+Socket(s):           1
+NUMA node(s):        1
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               85
+Model name:          Intel(R) Core(TM) i7-9800X CPU @ 3.80GHz
+Stepping:            4
+CPU MHz:             1683.597
+CPU max MHz:         4500.0000
+CPU min MHz:         1200.0000
+BogoMIPS:            7600.00
+Virtualization:      VT-x
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            1024K
+L3 cache:            16896K
+NUMA node0 CPU(s):   0-15
+...
+
+jarvis:um_perf$ vmstat -s
+     32465552 K total memory
+...
+
+jarvis:um_perf$ cat /etc/centos-release
+CentOS Linux release 8.1.1911 (Core)
+````
+
+### Host S3
+
+Host S3 - Store
+
+````
+mamba:um_perf$ lscpu
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                16
+On-line CPU(s) list:   0-15
+Thread(s) per core:    2
+Core(s) per socket:    8
+Socket(s):             1
+NUMA node(s):          1
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 85
+Model name:            Intel(R) Core(TM) i7-9800X CPU @ 3.80GHz
+Stepping:              4
+CPU MHz:               1200.024
+CPU max MHz:           4500.0000
+CPU min MHz:           1200.0000
+BogoMIPS:              7600.00
+Virtualization:        VT-x
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              1024K
+L3 cache:              16896K
+NUMA node0 CPU(s):     0-15
+...
+
+mamba:um_perf$ vmstat -s
+     32467580 K total memory
+...
+
+mamba:um_perf$ cat /etc/centos-release
+CentOS Linux release 7.9.2009 (Core)
 ````
