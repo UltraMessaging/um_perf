@@ -125,9 +125,10 @@ The test programs use the "-a" command-line option to change the affinity
 of the time-critical threads to the time-critical CPUs.
 See [Affinity](#affinity).
 
-NOTE: the "taskset" command expects a bitmap of CPUs, with 0x01 representing
-CPU number 0, 0x02 representing CPU 1, 0x04 representing CPU 2, etc.
-The um_perf tools expect the actual CPU number.
+ATTENTION: the "taskset" command's "-a" option expects a bitmap of CPUs,
+with 0x01 representing CPU number 0, 0x02 representing CPU 1,
+0x04 representing CPU 2, etc.
+The um_perf tools' "-a" options expect the actual CPU number.
 
 ### Requirements
 
@@ -246,7 +247,7 @@ We use multicast groups "239.101.3.1" through "239.101.3.4".
 Change those to the group provided by your network admins.
 
 WARNING:
-The "um.xml" configuration is design for ease of performing the desired
+The "um.xml" configuration is designed for ease of performing the desired
 tests, and is not suitable for production.
 It does not contain proper tunings for many other options.
 It uses multicast topic resolution for ease of setting up the test,
@@ -292,255 +293,6 @@ The "ts_max_ns=365127" represents the longest interruption observed
 during the 1G loops.
 
 ### Measure Maximum Sustainable Message Rate
-
-Open three "terminal" windows to your test host.
-
-***Window 1***: run "top -d 1" to continuously display system usage statistics.
-When "top" is running, press the "1" key.
-This displays per-CPU statistics.
-It may be helpful to expand this window vertically to maximize the number
-of lines displayed.
-While a test is running, CPU 5 is receiving, and CPU 7 is sending.
-Typically, both will be at 100% user mode CPU utilization.
-
-***Window 2***: run "taskset -a 1 um_perf_sub -c ump.cfg -a 5 -f".
-Substitute the "-a 1" and the "-a 5" with the non-time-critical and
-time-critical CPUs you previously chose.
-For example:
-````
-taskset -a 1 um_perf_sub -c ump.cfg -a 5 -f
-Core-7911-1: Onload extensions API has been dynamically loaded
-Core-9401-4: WARNING: default_interface for a context should be set to a valid network interface.
-Core-5688-1833: WARNING: Host has multiple multicast-capable interfaces; going to use [enp5s0f1np1][10.29.4.52].
-Core-10403-150: Context (0x1f47a10) created with ContextID (2599490123) and ContextName [(NULL)]
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=1, o_spin_cnt=0, o_topic='um_perf',
-````
-
-***Window 3***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000".
-Substitute the "-a 1" and the "-a 7" with the non-time-critical and
-time-critical CPUs you previously chose.
-For example:
-````
-$ taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 25 -r 999999999 -n 100000000
-Core-7911-1: Onload extensions API has been dynamically loaded
-Core-9401-4: WARNING: default_interface for a context should be set to a valid network interface.
-Core-5688-1833: WARNING: Host has multiple multicast-capable interfaces; going to use [enp5s0f1np1][10.29.4.52].
-Core-10403-150: Context (0x1879a10) created with ContextID (2001452034) and ContextName [(NULL)]
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=25, o_num_msgs=100000000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
-actual_sends=100000000, duration_ns=5045650145, result_rate=19819051.485188,
-25,100010000,19819051.485188
-````
-This run took 5 seconds to send 100M 64-byte message for a resulting message
-rate of 19.8M msgs/sec.
-
-Wait 5 seconds after the publisher completes, and Window 2 will display:
-````
-rcv event EOS, 'um_perf', LBT-SMX:aa44d3c:12001[3393948135], num_rcv_msgs=100010000,
-````
-Note that the total messages are equal to the requested messages (o_num_msgs)
-plus the warmup messages (o_warmup_loops).
-
-Also, note that the EOS message might be printed twice.
-This is a known issue and does not negatively affect execution.
-
-Also, note that the "top" command running in Window 1 shows CPU 5 running at
-100%, even though the publisher is not running.
-The subscriber does not create the SMX thread until it initially discovers
-the SMX source.
-Once the SMX thread is created,
-it will continue running at 100% until the context is deleted.
-
-#### Other Message Sizes
-
-Here are the maximum sustainable rates measured at Informatica for a variety
-of message sizes:
-
--m msg_len | Maximum Sustainable Message Rate
----------- | --------------------------------
-25 | 19,819,051
-64 | 17,475,337
-65 | 24,240,992
-100 | 33,013,389
-112 | 32,984,303
-113 | 75,251,854
-128 | 75,500,906
-129 | 17,599,110
-200 | 15,776,588
-500 | 14,548,092
-1500 | 14,787,552
-
-Note the discontinuities at message sizes 65, 113, and 129.
-There are other discontinuities,
-although they may depend on the hardware used.
-We believe these discontinuities result from alignment to
-cache lines, affecting when and how data moves from main memory
-to the CPU cache.
-
-The higher throughput numbers are not reliable,
-especially as application complexity is added,
-which will affect the CPU cache. 
-This is why we claim throughput of 14M msgs/sec - this is a
-reliable performance measure that does not rely on luck.
-
-#### Receiver Workload
-
-The ["-s spin_cnt"](#spin-count) option can be used to add
-extra work to the subscriber's receiver callback function.
-This can be used to illustrate another counter-intuitive effect related
-to ["memory contention"](#memory-contention-and-cache-invalidation).
-
-In window 2, restart the subscriber, replacing the "-f" option with "-s 4".
-For example:
-````
-taskset -a 1 um_perf_sub -c ump.cfg -a 5 -s 4
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=4, o_topic='um_perf',
-...
-````
-
-Then in window 3, re-run the publisher with 64-byte messages.
-For example:
-````
-taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 64 -r 999999999 -n 100000000
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=64, o_num_msgs=100000000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
-actual_sends=100000000, duration_ns=1250518159, result_rate=79966851.564928,
-64,100010000,4,79966851.564928
-````
-
-The previous measurement where the receiver used "-f" gave a result rate
-of 17.5M msgs/sec.
-But by adding four busy loops inside the subscriber's receiver callback,
-the result rate jumps to 79.9M msgs/sec - a 400% speed increase.
-We believe this to be due to 
-["memory contention"](#memory-contention-and-cache-invalidation);
-with the very fast receiver, the publisher always collides with the subscriber
-accessing shared memory.
-By adding just a small amount of extra work to the receiver callback,
-the publisher and subscriber "just miss" each other,
-resulting in greatly increased throughput.
-
-The higher throughput numbers are not reliable,
-especially as application complexity is added,
-which will affect the CPU cache and timing in unpredictable ways. 
-This is why we claim a throughput of 14M msgs/sec - this is a
-reliable performance measure that does not rely on luck.
-
-#### Slow Receiver
-
-You can slow down the receiver by replacing the "-f" option with
-"-s spin_cnt" using large values for "spin_cnt".
-
-In window 2, restart the subscriber, replacing the "-f" option with "-s 10000".
-For example:
-````
-taskset -a 1 um_perf_sub -c ump.cfg -a 5 -s 10000
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=10000, o_topic='um_perf',
-...
-````
-
-Then in window 3, re-run the publisher with 200K 128-byte messages.
-For example:
-````
-taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x0 -m 128 -r 999999999 -n 200000
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=128, o_num_msgs=200000, o_rate=999999999, o_topic='um_perf', o_warmup_loops=10000,
-actual_sends=200000, duration_ns=2703074933, result_rate=73989.809738,
-````
-
-The original throughput for 128-byte messages was 75.5M msgs/sec.
-With a spin count of 200,000, the throughput drops to 74K msgs/sec.
-
-### Measure Latency
-
-Open three "terminal" windows to your test host.
-
-***Window 1***: run "top -d 1" to continuously display system usage statistics.
-When "top" is running, press the "1" key.
-This displays per-CPU statistics.
-It may be helpful to expand this window vertically to maximize the number
-of lines displayed.
-
-***Window 2***: run "taskset -a 1 um_perf_sub -c ump.cfg -a 5".
-Substitute the "-a 1" and the "-a 5" with the non-time-critical and
-time-critical CPUs you previously chose.
-For example:
-````
-taskset -a 1 um_perf_sub -c ump.cfg -a 5
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=5, o_config=ump.cfg, o_fast=0, o_spin_cnt=0, o_topic='um_perf',
-````
-
-***Window 3***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000".
-Substitute the "-a 1" and the "-a 7" with the non-time-critical and
-time-critical CPUs you previously chose.
-For example:
-````
-$ taskset -a 1 /home/sford/GitHub/um_perf/um_perf_pub -a 7 -c ump.cfg -l 2000 -f 0x3 -m 100 -r 250000 -n 2500000
-Core-7911-1: Onload extensions API has been dynamically loaded
-...
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x03, o_jitter_loops=0, o_linger_ms=2000, o_msg_len=100, o_num_msgs=2500000, o_rate=250000, o_topic='um_perf', o_warmup_loops=10000,
-actual_sends=2500000, duration_ns=9999997986, result_rate=250000.050350,
-````
-This run took 10 seconds to send 2.5M 100-byte message at 250K msgs/sec.
-
-Wait 5 seconds after the publisher completes, and Window 2 will display:
-````
-rcv event EOS, 'um_perf', LBT-SMX:7001139a:12001[1912960237], num_rcv_msgs=2510000, min_latency=128, max_latency=205974, average latency=156,
-````
-
-Most of the latencies will be close to 128.
-It's the outliers that pull the average up to 156.
-The maximum outlier is 206 microseconds, less than the maximum
-interruption [measured earlier](#measure-system-interruptions).
-See [Measurement Outliers](#measurement-outliers).
-
-#### Other Message Sizes and Rates
-
-Here are the latencies in nanoseconds measured at Informatica for a variety
-of message sizes and message rates.
-
--m msg_len | Message Rate | Min Latency | Avg Latency
----------- | ------------ | ----------- | -----------
-100        | 250K         | 128         | 156
-100        | 1M           | 95          | 155
-100        | 5M           | 85          | 152
-100        | 10M          | 67          | 143
-500        | 250K         | 94          | 158
-500        | 1M           | 84          | 154
-500        | 5M           | 70          | 152
-500        | 10M          | 70          | 147
-1500       | 250K         | 107         | 157
-1500       | 1M           | 95          | 157
-1500       | 5M           | 70          | 152
-1500       | 10M          | 70          | 163
-
-See [Measurement Outliers](#measurement-outliers).
-
-### Other Interesting Measurements
-
-Any of the above measurements can be repeated with cross-NUMA memory
-access by modifying the "-a affinity" number so that the
-publisher and subscriber are on different NUMA nodes.
-You will see a performance decrease.
-
-Any of the above measurements can be repeated with the generic source
-API (instead of the optimized SMX API) by adding 4 to the publisher's
-"-f flag" option.
-You will see a performance decrease.
-
-Any of the above measurements can be repeated with multiple instances
-of the subscriber running.
-Be sure to run each subscriber on its own CPU, all on the
-same NUMA node.
-You will see performance decrease slightly as the number of receivers
-increases.
 
 ## TOOL USAGE NOTES
 
@@ -706,11 +458,11 @@ on performance.
 
 ## MEASUREMENT OUTLIERS
 
-The SMX transport code is written to provide a very constant execution time.
+The SmartSource transport code is written to provide a very constant
+execution time.
 Dynamic memory (malloc/free) is not used during message transfer.
-User data is not copied between buffers.
-There is no significant source for measurement outliers
-(jitter) in the SMX code itself.
+There is very little source for measurement outliers
+(jitter) in the SmartSource code itself.
 
 However, the measurements made at Informatica show significant outliers.
 Two environmental factors cause these outliers:
@@ -747,57 +499,6 @@ the test results are highly susceptible to interruptions.
 
 See [Jitter Measurement](#jitter-measurement) for a method to measure
 these interruptions.
-
-### Memory Contention and Cache Invalidation
-
-There are two places where memory contention plays a significant role
-in varying the measured performance of SMX:
-when the shared memory is empty of messages and the receiver is waiting for one,
-and when the shared memory is full, and the publisher is waiting for
-an opening to be made.
-In both cases, one CPU is continuously reading a word of shared memory,
-waiting for the other CPU to write something into it.
-When the "writer" CPU is ready to write the value that the "reader" CPU
-is waiting for, the hardware must serialize the accesses and maintain
-cache coherency, which introduces wait states for both CPUs.
-
-Take the case where the memory segment is empty, and the subscriber is
-waiting for the publisher to send a message.
-The SMX receiver code is tightly polling the "head index",
-waiting for the publisher to move it. The memory contention associated with
-the "send" function significantly slows down updating the
-head index.
-If we assume that the receiver code is faster than the sender code,
-the receiver will quickly process the message and go back to tightly
-reading the head index.
-Thus, the publisher will encounter this contention on every single message sent,
-resulting in a baseline throughput.
-
-Now let's modify the situation.
-Let's add a little bit of work in the subscriber's receiver callback.
-In the "um_perf_sub" program, this is simply an empty "for" loop that
-spins a requested number of times (see the
-["-s spin_cnt"](#spin-count) command-line option).
-If the receiver spins only three times for each received message,
-this allows the sender to update the shared memory before the receiver
-has finished.
-This greatly increases the speed of that send operation,
-and also increases the speed of the subsequent read operation.
-Informatica has seen throughput increase by over 400% by
-simply adding that little bit of work to the receiver.
-The memory accesses just miss each other instead of colliding.
-
-This effect can be demonstrated in [Receiver Workload](#receiver-workload).
-Note that the effect is more pronounced with smaller messages sizes.
-
-In a real-world environment where traffic bursts intensely,
-followed by periods of idleness, it frequently happens that the first
-message of a burst will have the contention,
-but many of the subsequent messages in the burst can avoid the contention.
-However, this is typically not something that you can count on.
-So for this report, the "fully-contended" throughput is the one we emphasize.
-If, in practice, the sender and receiver sometimes synchronize in a way that
-improves throughput, that's a nice benefit, but not a guarantee.
 
 ## CODE NOTES
 
