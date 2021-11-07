@@ -1,6 +1,6 @@
-# um_perf - test programs to measure the performance of Ultra Messagingj.
+# um_perf - test programs to measure the performance of Ultra Messaging.
 
-- [um_perf - test programs to measure the performance of Ultra Messagingj.](#um-perf---test-programs-to-measure-the-performance-of-ultra-messagingj)
+- [um_perf - test programs to measure the performance of Ultra Messaging.](#um-perf---test-programs-to-measure-the-performance-of-ultra-messaging)
   * [COPYRIGHT AND LICENSE](#copyright-and-license)
   * [REPOSITORY](#repository)
   * [TESTS](#tests)
@@ -996,6 +996,14 @@ CentOS Linux release 8.1.1911 (Core)
 ### Host S1
 
 Host S1 - Store
+
+This host probably most-resembles the kinds of hosts that our customers
+would use.
+It does not have the highest possible CPU speed, but should be close to
+most customers' modern production systems.
+It does have a fast SSD disk, which is optimized for writing.
+Informatica strongly recommends using SSD disks that are optimized for
+writing for disk-based Stores.
 
 ````
 zeus:um_perf$ lscpu
