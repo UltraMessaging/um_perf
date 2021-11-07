@@ -751,9 +751,8 @@ This loop is used to add a small amount of per-message "work" to the subscriber.
 Note that the "global_counter" variable is made global so the compiler
 won't optimize the loop away.
 
-This is used to explore the effects of
-[memory contention](#memory-contention-and-cache-invalidation)
-on performance.
+This option is not used in these tests, but can be used to artificially
+slow down the subscriber.
 
 ### Affinity
 
@@ -915,7 +914,7 @@ handle bursts of a maximum intensity and duration.
 
 When running at or near the maximum sustainable throughput,
 some amount of buffering latency is inevitable due to the subscriber being
-susceptible to [execution interruptions](#interruptions).
+susceptible to execution [interruptions](#interruptions).
 This contributes to latency variation since messages after a
 subscriber interruption can experience buffering latency if the subscriber
 hasn't yet gotten caught up.
