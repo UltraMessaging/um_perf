@@ -170,16 +170,8 @@ Choose two CPU numbers on the same NUMA node for your time-critical
 CPUs.
 Choose another CPU in the same NUMA node for your non-time-critical CPU.
 
-For our testing, we chose CPUs 5 and 7 for time-critical,
-and CPU 1 for the non-time-critical.
-All are on NUMA node 1.
-
 ### Build Test Tools
 
-The standard UM example applications were not designed to measure the maximum
-sustainable message rate for SMX, or message latency under load.
-
-A new pair of tools were written:
 * um_perf_pub - publisher (source).
 * um_perf_sub - subscriber (receiver).
 
@@ -213,26 +205,49 @@ export PATH="$HOME/um_perf:$PATH"
 
 ### Update Configuration File
 
-The file "ump.cfg" should be modified.
-Here is an excerpt:
-````
-# ump.cfg
-
-context resolver_multicast_address 239.101.3.1
-...
-````
-
-Contact your network administration group and request a multicast group
-that you can use exclusively (for topic resolution).
+Contact your network administration group and request four multicast groups
+that you can use exclusively.
 You don't want your testing to interfere with others,
 and you don't want others' activities to interfere with your test.
 
-We used group "239.101.3.1".
-Change that to the group provided by your network admins.
+Also take note of the publisher's 10G interface IP address.
+Ours is 10.29.4.121.
+It is usually possible to mask off the final 8 bits and use the CIDR form
+of the network address.
+For example: "10.29.4.0/24".
+This can typically be used by all hosts on the same LAN.
+
+The file "um.xml" should be modified.
+Here is an excerpt:
+````
+<?xml version="1.0" encoding="UTF-8" ?>
+<um-configuration version="1.0">
+  <templates>
+    <template name="um_perf">
+      <options type="context"> 
+        <option name="resolver_multicast_interface" default-value="10.29.4.0/24"/>
+        <option name="request_tcp_interface" default-value="10.29.4.0/24"/>
+        <option name="resolver_multicast_address" default-value="239.101.3.1"/>
+...
+  <applications>
+    <application name="um_perf" template="um_perf">
+      <contexts>
+        <context>
+          <sources>
+            <topic topicname="topic1">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+...
+````
+Search this file for "239" to find all lines that contain multicast groups,
+and "10.29" for other site-specific IPs.
+
+We use multicast groups "239.101.3.1" through "239.101.3.4".
+Change those to the group provided by your network admins.
 
 WARNING:
-The "ump.cfg" configuration is a minimal setup for this test,
-and is not suitable for production.
+The "um.xml" configuration is design for ease of performing the desired
+tests, and is not suitable for production.
 It does not contain proper tunings for many other options.
 It uses multicast topic resolution for ease of setting up the test,
 even though we typically recommend the use of
