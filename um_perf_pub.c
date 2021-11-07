@@ -39,16 +39,22 @@ static char *o_config = NULL;
 static int o_generic_src = 0;
 static char *o_histogram = NULL;
 static int o_linger_ms = 1000;
-static int o_msg_len = 25;
+static int o_msg_len = 700;
 static int o_num_msgs = 10000000;
 static char *o_persist = NULL;
 static int o_rate = 1000000;
 static char *o_topics = NULL;
-static int o_warmup_loops = 10000;
+static char *o_warmup = NULL;
 static char *o_xml_config = NULL;
 
-/* Globals. The code depends on the loader initializing them to all zeros. */
+/* Parameters parsed out from command-line options. */
 char *app_name;
+int histo_num_buckets;
+int histo_ns_per_bucket;
+int warmup_loops;
+int warmup_rate;
+
+/* Globals. The code depends on the loader initializing them to all zeros. */
 char *msg_buf;
 perf_msg_t *perf_msg;
 int global_max_tight_sends;
@@ -56,7 +62,7 @@ int registration_complete;
 int cur_flight_size;
 int max_flight_size;
 
-char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H histo_parms] [-l linger_ms] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic] [-w warmup_loops] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -71,27 +77,108 @@ void help() {
       "  -a affinity_cpu : bitmap for CPU affinity for send thread [%d]\n"
       "  -c config : configuration file; can be repeated [%s]\n"
       "  -g : generic source [%d]\n"
-      "  -H histo_parms : enable send time histogram  [%s]\n"
-      "     histo_parms = num_buckets,ns_per_bucket\n"
+      "  -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]\n"
       "  -l linger_ms : linger time before source delete [%d]\n"
       "  -m msg_len : message length [%d]\n"
       "  -n num_msgs : number of messages to send [%d]\n"
       "  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]\n"
       "  -r rate : messages per second to send [%d]\n"
       "  -t topics : comma-separated topic strings [\"%s\"]\n"
-      "  -w warmup_loops : messages to send before measurement [%d]\n"
+      "  -w warmup_loops,warmup_rate : messages to send before measurement [%s]\n"
       "  -x xml_config : XML configuration file [%s]\n"
       , o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms
       , o_msg_len, o_num_msgs, o_persist, o_rate, o_topics
-      , o_warmup_loops, o_xml_config
+      , o_warmup, o_xml_config
   );
   exit(0);
 }
 
 
+void get_my_opts(int argc, char **argv)
+{
+  int opt;  /* Loop variable for getopt(). */
+
+  /* Set defaults for string options. */
+  o_config = strdup("");
+  o_histogram = strdup("0,0");
+  o_persist = strdup("");
+  o_topics = strdup("");
+  o_warmup = strdup("100000,100000");
+  o_xml_config = strdup("");
+
+  while ((opt = getopt(argc, argv, "ha:c:gH:l:m:n:p:r:t:w:x:")) != EOF) {
+    switch (opt) {
+      case 'h': help(); break;
+      case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
+      /* Allow -c to be repeated, loading each config file in succession. */
+      case 'c': free(o_config);
+                o_config = strdup(optarg);
+                E(lbm_config(o_config));
+                break;
+      case 'g': o_generic_src = 1; break;
+      case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
+      case 'l': SAFE_ATOI(optarg, o_linger_ms); break;
+      case 'm': SAFE_ATOI(optarg, o_msg_len); break;
+      case 'n': SAFE_ATOI(optarg, o_num_msgs); break;
+      case 'p': free(o_persist); o_persist = strdup(optarg); break;
+      case 'r': SAFE_ATOI(optarg, o_rate); break;
+      case 't': free(o_topics); o_topics = strdup(optarg); break;
+      case 'w': free(o_warmup); o_warmup = strdup(optarg); break;
+      case 'x': free(o_xml_config); o_xml_config = strdup(optarg); break;
+      default: usage(NULL);
+    }  /* switch opt */
+  }  /* while getopt */
+
+  /* Parse the histogram option: "histo_num_buckets,histo_ns_per_bucket". */
+  char *work_str = strdup(o_histogram);
+  char *histo_num_buckets_str = strtok(work_str, ",");
+  ASSRT(histo_num_buckets_str != NULL);
+  SAFE_ATOI(histo_num_buckets_str, histo_num_buckets);
+
+  char *histo_ns_per_bucket_str = strtok(NULL, ",");
+  ASSRT(histo_ns_per_bucket_str != NULL);
+  SAFE_ATOI(histo_ns_per_bucket_str, histo_ns_per_bucket);
+
+  ASSRT(strtok(NULL, ",") == NULL);
+  free(work_str);
+
+  if (strlen(o_persist) == 0) {
+    app_name = "um_perf";
+  }
+  else if (strcmp(o_persist, "r") == 0) {
+    app_name = "um_perf_rpp";
+  }
+  else if (strcmp(o_persist, "s") == 0) {
+    app_name = "um_perf_spp";
+  }
+  else {
+    usage("Error, -p value must be '', 'r', or 's'\n");
+  }
+
+  if (strlen(o_xml_config) > 0) {
+    /* Unlike lbm_config(), you can't load more than one XML file.
+     * If user supplied -x more than once, only load last one. */
+    E(lbm_config_xml_file(o_xml_config, app_name));
+  }
+
+  /* Parse the warmup option: "warmup_loops,warmup_rate". */
+  work_str = strdup(o_warmup);
+  char *warmup_loops_str = strtok(work_str, ",");
+  ASSRT(warmup_loops_str != NULL);
+  SAFE_ATOI(warmup_loops_str, warmup_loops);
+
+  char *warmup_rate_str = strtok(NULL, ",");
+  ASSRT(warmup_rate_str != NULL);
+  SAFE_ATOI(warmup_rate_str, warmup_rate);
+
+  ASSRT(strtok(NULL, ",") == NULL);
+  free(work_str);
+
+  if (optind != argc) { usage("Extra parameter(s)"); }
+}  /* get_my_opts */
+
+
 int *histo_buckets = NULL;
-int histo_num_buckets = 0;
-int histo_ns_per_bucket = 0;
 int histo_min_sample = 999999999;
 int histo_max_sample = 0;
 int histo_overflows = 0;  /* Number of values above the last bucket. */
@@ -113,26 +200,12 @@ void histo_init()
   }
 }  /* histo_init */
 
-void histo_create(char *histo_parms)
+void histo_create()
 {
-  char *work_str = strdup(histo_parms);
-  char *num_buckets_str = strtok(work_str, ",");
-  ASSRT(num_buckets_str != NULL);
-  SAFE_ATOI(num_buckets_str, histo_num_buckets);
-  
-  char *ns_per_bucket_str = strtok(NULL, ",");
-  ASSRT(ns_per_bucket_str != NULL);
-  SAFE_ATOI(ns_per_bucket_str, histo_ns_per_bucket);
-
-  /* There should be no more values. */
-  ASSRT(strtok(NULL, ",") == NULL);
-  free(work_str);
-
   histo_buckets = (int *)malloc(histo_num_buckets * sizeof(int));
 
   histo_init();
 }  /* histo_create */
-
 
 void histo_input(int in_sample)
 {
@@ -157,14 +230,11 @@ void histo_input(int in_sample)
   }
 }  /* histo_input */
 
-
 void histo_print()
 {
   int i;
   for (i = 0; i < histo_num_buckets; i++) {
-    if (histo_buckets[i] > 0) {
-      printf("  histo_buckets[%d]=%d\n", i, histo_buckets[i]);
-    }
+    printf("%d\n", histo_buckets[i]);
   }
   printf("histo_overflows=%d, histo_min_sample=%d, histo_max_sample=%d,\n",
       histo_overflows, histo_min_sample, histo_max_sample);
@@ -172,7 +242,6 @@ void histo_print()
   printf("histo_num_samples=%d, average_sample=%d,\n",
       histo_num_samples, (int)average_sample);
 }  /* histo_print */
-
 
 void histo_test()
 {
@@ -182,67 +251,6 @@ void histo_test()
   histo_input(histo_num_buckets * histo_ns_per_bucket);
   histo_print();
 }  /* histo_test */
-
-
-void get_my_opts(int argc, char **argv)
-{
-  int opt;  /* Loop variable for getopt(). */
-
-  /* Set defaults for string options. */
-  o_config = strdup("");
-  o_histogram = strdup("");
-  o_persist = strdup("");
-  o_topics = strdup("");
-  o_xml_config = strdup("");
-
-  while ((opt = getopt(argc, argv, "ha:c:gH:l:m:n:p:r:t:w:x:")) != EOF) {
-    switch (opt) {
-      case 'h': help(); break;
-      case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
-      /* Allow -c to be repeated, loading each config file in succession. */
-      case 'c': free(o_config);
-                o_config = strdup(optarg);
-                E(lbm_config(o_config));
-                break;
-      case 'g': o_generic_src = 1; break;
-      case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
-      case 'l': SAFE_ATOI(optarg, o_linger_ms); break;
-      case 'm': SAFE_ATOI(optarg, o_msg_len); break;
-      case 'n': SAFE_ATOI(optarg, o_num_msgs); break;
-      case 'p': free(o_persist); o_persist = strdup(optarg); break;
-      case 'r': SAFE_ATOI(optarg, o_rate); break;
-      case 't': free(o_topics); o_topics = strdup(optarg); break;
-      case 'w': SAFE_ATOI(optarg, o_warmup_loops); break;
-      case 'x': free(o_xml_config); o_xml_config = strdup(optarg); break;
-      default: usage(NULL);
-    }  /* switch opt */
-  }  /* while getopt */
-
-  if (strlen(o_histogram) > 0) {
-    histo_create(o_histogram);
-  }
-
-  if (strlen(o_persist) == 0) {
-    app_name = "um_perf";
-  }
-  else if (strcmp(o_persist, "r") == 0) {
-    app_name = "um_perf_rpp";
-  }
-  else if (strcmp(o_persist, "s") == 0) {
-    app_name = "um_perf_spp";
-  }
-  else {
-    usage("Error, -p value must be '', 'r', or 's'\n");
-  }
-
-  if (strlen(o_xml_config) > 0) {
-    /* Unlike lbm_config(), you can't load more than one XML file.
-     * If user supplied -x more than once, only load last one. */
-    E(lbm_config_xml_file(o_xml_config, app_name));
-  }
-
-  if (optind != argc) { usage("Extra parameter(s)"); }
-}  /* get_my_opts */
 
 
 int handle_src_event(int event, void *extra_data, void *client_data)
@@ -507,9 +515,13 @@ int main(int argc, char **argv)
 
   get_my_opts(argc, argv);
 
+  if (histo_num_buckets > 0) {
+    histo_create();
+  }
+
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_cpu=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist='%s', o_rate=%d, o_topics='%s', o_warmup_loops=%d, xml_config=%s, \n",
-      o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics, o_warmup_loops, o_xml_config);
+  printf("o_affinity_cpu=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist='%s', o_rate=%d, o_topics='%s', o_warmup=%s, xml_config=%s, \n",
+      o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics, o_warmup, o_xml_config);
 
   msg_buf = (char *)malloc(o_msg_len);
 
@@ -540,19 +552,19 @@ int main(int argc, char **argv)
     sleep(5);
   }
   else {  /* Streaming (not persistence). */
-    if (o_warmup_loops > 0) {
+    if (warmup_loops > 0) {
       /* Without persistence, need to initiate data on each src. */
       send_loop(num_srcs, 999999999);
-      o_warmup_loops -= num_srcs;
-      if (o_warmup_loops < 0) { o_warmup_loops = 0; }
+      warmup_loops -= num_srcs;
+      if (warmup_loops < 0) { warmup_loops = 0; }
     }
     /* Wait for topic resolution. */
     sleep(1);
   }
 
-  if (o_warmup_loops > 1) {
+  if (warmup_loops > 1) {
     /* Warmup loops to get CPU caches loaded. */
-    send_loop(o_warmup_loops, 10000);
+    send_loop(warmup_loops, warmup_rate);
   }
 
   /* Measure overall send rate by timing the main send loop. */
