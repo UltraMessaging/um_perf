@@ -79,8 +79,8 @@ Informatica used the tools in this repository to measure the
 maximum-sustainable message rate for streaming and persistent sources.
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
-but not enough to run a single representative test of Persistence.
-That requires 5 fast hosts in total, three with fast disks.
+but not enough to run a representative test of Persistence.
+That requires five fast hosts in total, three with fast disks.
 But the UM lab only has one host with a fast disk.
 
 So we devised a series of tests to estimate the performance of a
@@ -99,20 +99,20 @@ a single-store Q/C group.
 5. Three sources (single sending thread), three RPP-based Stores
 (one per source), three receivers (single receiver thread).
 This demonstrates balancing the load across multiple Stores
-(each Store only sees one third of the messages).
+(each Store only sees one-third of the messages).
 6. Three sources (single sending thread), streaming (no Store).
 This demonstrates that sending to three streaming sources can send almost as
 fast as a single streaming source.
 
-The method of discovering the maximun sustainable throughput is
+The method of discovering the maximum sustainable throughput is
 to run a publisher at a given message rate for at least 1 minute
 and check for failure indications. If the test succeeds,
 repeat with a higher message rate.
 When a test fails,
-the message rate is decreased and the test is repeated.
+the message rate is decreased, and the test is repeated.
 (A test is said to have "failed" if any component has packet loss,
 or if the publisher exhausts flight size
-(LBM_EWOULDBLOCK send error) due exceeding the disk write speed.)
+(LBM_EWOULDBLOCK send error) due to exceeding the disk write speed.)
 
 Note that the comparisons will be *very* dependent on the underlying
 hardware (server and disk).
@@ -122,15 +122,15 @@ is as close as possible to their anticipated production hardware.
 Finally, note that many users choose SSD disks for their high performance.
 And while it is true that SSDs eliminate the "seek time" that can severely
 limit spinning disk performance,
-standard SSDs are typically "optimized for read",
+standard SSDs are typically "optimized for reading",
 meaning that their write speeds will often be significantly lower than
 cheaper spinning disk write speeds.
 Informatica strongly recommends selecting SSDs for persistent Stores that
 are "optimized for write".
 
-All tests were performed with 700-byte messages that are flushed
+All tests were performed with 700-byte messages that were flushed
 (no batching).
-UM Smart Sources and Xilinx (formerly Solarflare) 10-gig NICs with
+UM "Smart Sources" and Xilinx (formerly Solarflare) 10-gig NICs with
 Onload kernel-bypass drivers were used on all hosts.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
@@ -149,7 +149,7 @@ Test | Message Rate | Summary
 ### Reproduction
 
 This section contains details of how these results were generated at Informatica.
-These results can be reliably reproduced in our test lab.
+These results can reliably be reproduced in our test lab.
 
 It is assumed in all of these steps that the "LD_LIBRARY_PATH" environment
 variable includes the path to the Ultra Messaging version 6.14
@@ -264,12 +264,12 @@ that you can use exclusively.
 You don't want your testing to interfere with others,
 and you don't want others' activities to interfere with your test.
 
-Also take note of the publisher's 10G interface IP address.
+Also, take note of the publisher's 10G interface IP address.
 Ours is 10.29.4.121.
 It is usually possible to mask off the final 8 bits and use the CIDR form
 of the network address.
 For example: "10.29.4.0/24".
-This can typically be used by all hosts on the same LAN.
+All hosts can typically use this on the same LAN.
 
 #### UM Configuration File
 
@@ -322,7 +322,7 @@ different Stores for different tests.
 * store_2a.xml - used on host S2.
 * store_3a.xml - used on host S3.
 
-You should modify the fillowing lines in each file per your environment:
+You should modify the following lines in each file per your environment:
 ````
 ...
     <store name="store_a_topic1" interface="10.29.4.0/24" port="12001">
@@ -360,7 +360,7 @@ It may be helpful to expand this window vertically to maximize the number
 of lines displayed.
 
 ***Window 2***: run "taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150".
-Substitute the "-a 0x01" and the "-a 7" with the non-time-critical CPU bit mask
+Substitute the "-a 0x01" and the "-a 7" with the non-time-critical CPU bitmask
 and the time-critical CPU number you previously chose.
 For example:
 ````
@@ -393,7 +393,7 @@ S3 - for 3-Store tests, host running the third store.
 
 Note that in all tests, the command-line for host 1 (subscriber) is the same.
 
-Also note that the CPU affinities used are optimal for the Informatica hosts
+Also, note that the CPU affinities used are optimal for the Informatica hosts
 that we used.
 You will need to experiment with CPU numbers on your hardware to determine
 your optimum choices.
@@ -408,9 +408,9 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts, potentially minus 1 (due to head loss).
-I.e. in this test, it might be 50100000 or 50099999.
+I.e., in this test, it might be 50100000 or 50099999.
 
 Host 2 (publisher):
 ````
@@ -436,7 +436,7 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host S1 (Store):
@@ -473,7 +473,7 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host S1 (Store):
@@ -510,7 +510,7 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host S1 (Store):
@@ -566,7 +566,7 @@ actual_sends=50000000, duration_ns=60241625045, result_rate=829990.890230, globa
 Three sources (single sending thread), three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load across multiple Stores
-(each Store only sees one third of the messages).
+(each Store only sees one-third of the messages).
 
 Host 1 (subscriber):
 ````
@@ -574,7 +574,7 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host S1 (Store):
@@ -636,7 +636,7 @@ EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,t
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
-The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host 2 (publisher):
@@ -697,7 +697,7 @@ performance measurements.
 
 The "um_perf_pub" tool supports a histogram of time spent inside the UM
 "send" call (lbm_src_send or lbm_ssrc_send_ex).
-The output can be useful when tuning a host to reduce latency outliers.
+The output can be helpful when tuning a host to reduce latency outliers.
 
 Note that the "um_perf_jitter" tool also supports the same histogram.
 
@@ -730,7 +730,7 @@ respectively.
 
 Note that the publisher and subscriber both select among the same three
 application names.
-For example, the applicaion name "um_perf_rpp" can contain both source and
+For example, the application name "um_perf_rpp" can contain both source and
 receiver options,
 making it applicable to both "um_perf_pub" and "um_perf_sub".
 
