@@ -4,8 +4,8 @@
   * [COPYRIGHT AND LICENSE](#copyright-and-license)
   * [REPOSITORY](#repository)
   * [TESTS](#tests)
-  * [Results](#results)
-    + [REPRODUCTION](#reproduction)
+  * [RESULTS](#results)
+    + [Reproduction](#reproduction)
     + [Requirements](#requirements)
     + [Choose CPUs](#choose-cpus)
     + [Build Test Tools](#build-test-tools)
@@ -135,7 +135,7 @@ Onload kernel-bypass drivers were used on all hosts.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
 
-## Results
+## RESULTS
 
 Test | Message Rate | Summary
 ---- | ------------ | ------------
@@ -146,7 +146,7 @@ Test | Message Rate | Summary
 5 | 1.07M | 3 sources, load balanced
 6 | 1.4M | 3 streaming sources (no Stores)
 
-### REPRODUCTION
+### Reproduction
 
 This section contains details of how these results were generated at Informatica.
 These results can be reliably reproduced in our test lab.
