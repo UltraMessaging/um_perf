@@ -183,6 +183,7 @@ The um_perf tools' "-a" options expect the actual CPU number.
 hyperthreading turned off,
 16 gigabytes or more memory.
 At least one host must have a fast disk.
+These should be "bare metal" machines, NOT virtual machines.
 2. C compiler (gcc) and related tools.
 3. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).
@@ -217,6 +218,11 @@ NUMA node1 CPU(s):   1,3,5,7,9,11
 Choose two CPU numbers on the same NUMA node for your time-critical
 CPUs.
 Choose another CPU in the same NUMA node for your non-time-critical CPU.
+
+However, be aware that different CPUs will show different performances
+for network-intensive workloads.
+It is best to try different CPUs on a host to determine the fastest
+CPU for a given component (publisher, subscriber, Store).
 
 ### Build Test Tools
 
@@ -386,6 +392,11 @@ S3 - for 3-Store tests, host running the third store.
 ````
 
 Note that in all tests, the command-line for host 1 (subscriber) is the same.
+
+Also note that the CPU affinities used are optimal for the Informatica hosts
+that we used.
+You will need to experiment with CPU numbers on your hardware to determine
+your optimum choices.
 
 #### Test 1: Streaming
 
@@ -812,8 +823,8 @@ all interruptions.
 Without doing these optimizations,
 the test results are highly susceptible to interruptions.
 
-See [Jitter Measurement](#jitter-measurement) for a method to measure
-these interruptions.
+See [Measure System Interruptions](#measure-system-interruptions)
+for a method to measure these interruptions.
 
 ## CODE NOTES
 
