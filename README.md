@@ -29,15 +29,15 @@ THE LIKELIHOOD OF SUCH DAMAGES.
 
 See https://github.com/UltraMessaging/um_perf for code and documentation.
 
-## RESULTS
+## TESTS
 
 Informatica used the tools in this repository to measure the
 maximum-sustainable message rate for streaming and persistent sources.
 
-The Informatica Ultra Messaging computer lab has some fast machines,
+The Informatica Ultra Messaging computer lab has some fast hosts,
 but not enough to run a single representative test of Persistence.
-That requires 5 fast machines in total, three with fast disks.
-But the UM lab only has one machine with a fast disk.
+That requires 5 fast hosts in total, three with fast disks.
+But the UM lab only has one host with a fast disk.
 
 So we devised a series of tests to estimate the performance of a
 fully-provisioned production datacenter using a minimally-provisioned lab.
@@ -87,11 +87,11 @@ are "optimized for write".
 All tests were performed with 700-byte messages that are flushed
 (no batching).
 UM Smart Sources and Xilinx (formerly Solarflare) 10-gig NICs with
-Onload kernel-bypass drivers were used on all machines.
+Onload kernel-bypass drivers were used on all hosts.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
 
-### Test Results
+## Results
 
 Test | Message Rate | Summary
 ---- | ------------ | ------------
@@ -102,7 +102,10 @@ Test | Message Rate | Summary
 5 | 1.07M | 3 sources, load balanced
 6 | 1.4M | 3 streaming sources (no Stores)
 
-## REPRODUCE RESULTS
+### REPRODUCTION
+
+This section contains details of how these results were generated at Informatica.
+These results can be reliably reproduced in our test lab.
 
 It is assumed in all of these steps that the "LD_LIBRARY_PATH" environment
 variable includes the path to the Ultra Messaging version 6.14
@@ -115,7 +118,7 @@ export LD_LIBRARY_PATH=$LBM/lib
 ````
 
 Furthermore, it is assumed that the "PATH" environment variable includes
-the path to the directory containing the um_perf
+the path to the directory containing the um_perf tools'
 executables that you build.
 
 Finally, the "taskset" command is used to run the test programs,
@@ -132,10 +135,10 @@ The um_perf tools' "-a" options expect the actual CPU number.
 
 ### Requirements
 
-1. 5 Linux-based servers (X86, 64-bit).
+1. 5 Linux-based hosts (X86, 64-bit).
 hyperthreading turned off,
 16 gigabytes or more memory.
-At least one must have a fast disk.
+At least one host must have a fast disk.
 2. C compiler (gcc) and related tools.
 3. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).
@@ -174,7 +177,7 @@ Choose another CPU in the same NUMA node for your non-time-critical CPU.
 ### Build Test Tools
 
 * um_perf_pub - publisher (source).
-* um_perf_sub - subscriber (receiver).
+* um_perf_sub - subscriber (subscriber).
 
 The source code for these tools can be found in the GitHub repository
 "um_perf" at: https://github.com/UltraMessaging/um_perf
@@ -218,6 +221,8 @@ of the network address.
 For example: "10.29.4.0/24".
 This can typically be used by all hosts on the same LAN.
 
+#### UM Configuration File
+
 The file "um.xml" should be modified.
 Here is an excerpt:
 ````
@@ -256,6 +261,36 @@ even though we typically recommend the use of
 
 We recommend conducting a configuration workshop with Informatica.
 
+#### Store Configuration Files
+
+There are five different Store XML configuration files that are used by
+different Stores for different tests.
+
+* store_1a.xml - used on host S1, which has a fast disk.
+* store_1b.xml - used on host S2.
+* store_1c.xml - used on host S3.
+* store_2a.xml - used on host S2.
+* store_3a.xml - used on host S3.
+
+You should modify the fillowing lines in each file per your environment:
+````
+...
+    <store name="store_a_topic1" interface="10.29.4.0/24" port="12001">
+    <ume-attributes>
+      <option type="store" name="disk-cache-directory" value="/home/tmp/sford/cache1a"/>
+      <option type="store" name="disk-state-directory" value="/home/tmp/sford/state1a"/>
+...
+````
+Note that the directory names vary for each configuration file.
+Use the same interface CIDR value as in the "um.xml" file.
+
+For "store_1a.xml", ensure the "cache" directory is on host S1's fast disk
+and the "state" directory is on a different (not-fast) disk.
+For the other configuration files, the "cache" and "state" directories can be
+on the same disk.
+In all cases, the directories must be on disks that are local to the hosts,
+not network mounts.
+
 ### Measure System Interruptions
 
 As explained in [Measurement Outliers](#measurement-outliers),
@@ -263,7 +298,7 @@ there are many sources of application execution interruption that are
 beyond the control of UM.
 These interruptions result in latency outliers.
 
-To get an idea of the magnitude of outliers on your system,
+To get an idea of the magnitude of outliers on your host,
 run the jitter test.
 
 Open two "terminal" windows to your test host.
@@ -273,76 +308,323 @@ When "top" is running, press the "1" key.
 This displays per-CPU statistics.
 It may be helpful to expand this window vertically to maximize the number
 of lines displayed.
-While a test is running, CPU 5 is receiving, and CPU 7 is sending.
-Typically, both will be at 100% user mode CPU utilization.
 
-***Window 2***: run "taskset -a 1 um_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000".
-Substitute the "-a 1" and the "-a 7" with the non-time-critical and
-time-critical CPUs you previously chose.
+***Window 2***: run "taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150".
+Substitute the "-a 0x01" and the "-a 7" with the non-time-critical CPU bit mask
+and the time-critical CPU number you previously chose.
 For example:
 ````
-taskset -a 1 um_perf_pub -a 7 -c ump.cfg -f 0x0 -r 100000 -n 1000000 -l 2000 -j 1000000000
-Core-7911-1: Onload extensions API has been dynamically loaded
-o_affinity_cpu=7, o_config=ump.cfg, o_flags=0x00, o_jitter_loops=1000000000, o_linger_ms=2000, o_msg_len=25, o_num_msgs=1000000, o_rate=100000, o_topic='um_perf', o_warmup_loops=10000,
-ts_min_ns=12, ts_max_ns=365127,
+taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150
+o_affinity_cpu=1, o_jitter_loops=200000000, o_spin_cnt=150, ts_min_ns=186, ts_max_ns=49743,
 ````
 
-In this run of the jitter test, "ts_min_ns=12" represents the time,
-in nanoseconds, to execute "clock_gettime()" once.
-The "ts_max_ns=365127" represents the longest interruption observed
-during the 1G loops.
+In this run of the jitter test, "ts_min_ns=186" represents the time,
+in nanoseconds, to execute the 150-count spin loop plus one call to
+"clock_gettime()".
+The "ts_max_ns=49743" (49.7 microseconds) represents the longest interruption
+observed.
+Different hosts can experience radically different interrupt outliers.
 
-### Measure Maximum Sustainable Message Rate
+On a publishing CPU, this kind of interrupt can lead to a pause in messages,
+followed by a burst (to get caught up).
+On a subscribing CPU, this kind of interrupt can lead to buffering of messages
+in the network socket buffer, followed by a burst of message deliveries.
+
+### Measure Maximum Sustainable Message Rates
+
+The following hosts are referenced:
+````
+1 - host running the subscriber.
+2 - host running the publisher.
+S1 - host running a Store. Must have a fast disk.
+S2 - for 3-Store tests, host running the second store.
+S3 - for 3-Store tests, host running the third store.
+````
+
+Note that in all tests, the command-line for host 1 (subscriber) is the same.
+
+#### Test 1: Streaming
+
+Single source, single receiver, streaming (no Store).
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts, potentially minus 1 (due to head loss).
+I.e. in this test, it might be 50100000 or 50099999.
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,100000
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=32915563782, result_rate=1519038.237691, global_max_tight_sends=49559254, max_flight_size=51000000
+````
+Since the requested rate is 999M msgs/sec, which is far above what can be done,
+the publisher sends most of its messages in a tight loop as fast as it can,
+with a resulting rate of 1.519M msgs/sec.
+
+#### Test 2: Single SPP Store
+
+Single source, single SPP-based Store, single receiver.
+SPP means that it writes all messages to disk.
+This characterizes a single disk-based store's performance (throughput).
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,100000 -p s
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=66666666182, result_rate=750000.005453, global_max_tight_sends=125, max_flight_size=21385
+````
+
+#### Test 3: Single RPP Store
+
+Single source, single RPP-based Store, single receiver.
+This allows us to compare SPP to RPP.
+For the hardware we used, RPP is 15% faster than SPP.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,100000 -p r
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=58139535910, result_rate=859999.984819, global_max_tight_sends=2762, max_flight_size=96694
+````
+
+#### Test 4: Quorum/Consensus
+
+Single source, three RPP-based Stores in quorum/consensus, single receiver.
+This allows us to measure the impact of a 3-Store Q/C group compared to
+a single-store Q/C group.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host S2 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1b.xml | tee store1b.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host S3 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1c.xml | tee store1c.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,100000 -p r
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=60241625045, result_rate=829990.890230, global_max_tight_sends=1347, max_flight_size=98451
+````
+
+#### Test 5: Load Balance
+
+Three sources (single sending thread), three RPP-based Stores (one per source),
+three receivers (single receiver thread).
+This demonstrates balancing the load across multiple Stores
+(each Store only sees one third of the messages).
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host S2 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_2a.xml | tee store2a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host S3 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_3a.xml | tee store3a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+See [Store Warmup](#store-warmup).
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,100000 -p r
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=46499766856, result_rate=1075274.208467, global_max_tight_sends=48730678, max_flight_size=109702
+````
+#### Test 6: Three-Source Streaming
+
+Three sources (single sending thread), streaming (no Store).
+This demonstrates that sending to three streaming sources can send almost
+as fast as a single streaming source.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host 2 (publisher):
+````
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=35305822773, result_rate=1416196.991683, global_max_tight_sends=49507149, max_flight_size=50100000
+````
 
 ## TOOL USAGE NOTES
 
 ### um_perf_pub
 
 ````
-Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-f flags]
-    [-j jitter_loops] [-l linger_ms] [-m msg_len] [-n num_msgs]
-    [-r rate] [-t topic] [-w warmup_loops]
+Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g]
+  [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms]
+  [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic]
+  [-w warmup_loops,warmup_rate] [-x xml_config]
 where:
   -h : print help
   -a affinity_cpu : bitmap for CPU affinity for send thread [%d]
   -c config : configuration file; can be repeated [%s]
-  -f flags : bitmap [0x%x]: 0x01: FLAGS_TIMESTAMP (to measure latency)
-                           0x02: FLAGS_NON_BLOCKING
-                           0x04: FLAGS_GENERIC_SRC
-  -j jitter_loops : jitter measurement loops [%d]
+  -g : generic source [%d]
+  -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]
   -l linger_ms : linger time before source delete [%d]
   -m msg_len : message length [%d]
   -n num_msgs : number of messages to send [%d]
+  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]
   -r rate : messages per second to send [%d]
-  -t topic : topic string [\"%s\"]
-  -w warmup_loops : messages to send before measurement loop [%d]
+  -t topics : comma-separated topic strings [\"%s\"]
+  -w warmup_loops,warmup_rate : messages to send before measurement [%s]
+  -x xml_config : XML configuration file [%s]
 ````
-
-### Affinity
-
-The "-a" command-line option is used to specify the CPU core number
-to use for the time-critical thread.
-
-For the publisher (um_perf_pub.c),
-the time-critical thread is the "main" thread,
-since that is the thread that sends the messages.
-The publisher program is typically started with affinity set to a
-non-critical CPU core, typically 1, using the "taskset" command.
-The publisher creates its context, which creates the context thread,
-inheriting the CPU affinity to core 1.
-Then, before it starts sending messages,
-it sets affinity to the CPU core number specified with the "-a"
-command-line option.
-
-For the subscriber (um_perf_sub.c),
-the time-critical thread is the receiver thread (context thread).
-As with the publisher program,
-the subscriber program is typically started with affinity set to a
-non-critical CPU core, typically 1, using the "taskset" command.
-The publisher creates its context, which creates the context thread,
-inheriting the CPU affinity to core 1.
-The receiver thread sets its affinity during the processing of the
-"Beginning Of Stream" (LBM_MSG_BOS) receiver event.
 
 #### Linger Time
 
@@ -364,29 +646,52 @@ the CPU caches loaded.
 The execution of those initial warmup loops is not included in the
 performance measurements.
 
+#### Histogram
+
+The "um_perf_pub" tool supports a histogram of time spent inside the UM
+"send" call (lbm_src_send or lbm_ssrc_send_ex).
+The output can be useful when tuning a host to reduce latency outliers.
+
+Note that the "um_perf_jitter" tool also supports the same histogram.
+
+Contact UM Support for more information on using the histograms.
+
 ### um_perf_sub
 
 ````
-Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-f]
-    [-s spin_cnt] [-t topic]
+Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-s spin_cnt]
+  [-t topic] [-x xml_config]
 where:
+  -h : print help
   -a affinity_cpu : CPU number (0..N-1) for receive thread [%d]
   -c config : configuration file; can be repeated [%s]
-  -f : fast - minimal processing in message receive (no latency calcs)
+  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]
   -s spin_cnt : empty loop inside receiver callback [%d]
-  -t topic : topic string [%s]
+  -t topics : comma-separated topic strings [%s]
+  -x xml_config : configuration file [%s]
 ````
 
-#### Fast
+#### Persist Mode
 
-The "-f" command-line option causes the subscriber to use a very minimal
-receiver callback that has the lowest-possible per-message execution time.
-It is used when measuring the maximum sustainable message rate.
+The "-p ''|r|s" option selects between non-persistence (streamin),
+RPP persistence, or SPP persistence.
+However, this option is only used to select the application name passed
+to lbm_config_xml_file(), which in turn is used to select a group of
+configurations in the "um.xml" configuration file.
+The application names are "um_perf", "um_perf_rpp", and "umm_perf_spp"
+respectively.
 
-Without "-f", the receiver callback contains code that can sometimes add
-enough execution time to mask the effects of
-[memory contention](#memory-contention-and-cache-invalidation)
-on performance.
+Note that the publisher and subscriber both select among the same three
+application names.
+For example, the applicaion name "um_perf_rpp" can contain both source and
+receiver options,
+making it applicable to both "um_perf_pub" and "um_perf_sub".
+
+However, it turns out that the subscriber run with "-p r" is compatible with 
+all three data modes (streaming, RPP, and SPP) since the receiver simply
+conforms to the type of source.
+So for all tests, we run "um_perf_sub" with "-p r".
+
 
 #### Spin Count
 
@@ -402,6 +707,33 @@ won't optimize the loop away.
 This is used to explore the effects of
 [memory contention](#memory-contention-and-cache-invalidation)
 on performance.
+
+### Affinity
+
+The perf tools' "-a" command-line option is used to specify the CPU core number
+to use for the time-critical thread.
+
+For the publisher (um_perf_pub.c),
+the time-critical thread is the "main" thread,
+since that is the thread that sends the messages.
+The publisher program is typically started with affinity set to a
+non-critical CPU core, typically 1, using the "taskset" command.
+The publisher creates its context, which creates the context thread,
+inheriting the CPU affinity to core 1.
+Then, before it starts sending messages,
+it sets affinity to the CPU core number specified with the "-a"
+command-line option.
+
+For the subscriber (um_perf_sub.c),
+the time-critical thread is the "context" thread,
+since that is the thread that reads the network socket.
+The context thread's affinity is set when the context thread delivers the BOS event
+(beginning of session) to the application's receiver callback.
+
+ATTENTION: the "taskset" command's "-a" option expects a bitmap of CPUs,
+with 0x01 representing CPU number 0, 0x02 representing CPU 1,
+0x04 representing CPU 2, etc.
+The um_perf tools' "-a" options expect the actual CPU number.
 
 ## MEASUREMENT OUTLIERS
 
@@ -514,14 +846,13 @@ The "send_loop()" function in "um_perf_pub.c" does the work of
 sending messages at the desired rate.
 It is designed to "busy-loop" between sends so that the time spacing between
 messages is as constant and uniform as possible.
-The message traffic is not subject to bursts.
+The publisher's traffic is not subject to bursts and pauses.
 
 This approach is not intended to model the behavior of a real-life trading system,
 where message traffic is highly subject to intense bursts.
 Generating bursty traffic is very important when testing trading system
 designs,
-but is not desired when measuring maximum sustainable throughput and
-latency under load.
+but is not desired when measuring maximum sustainable throughput.
 
 Maximum sustainable throughput is the message rate at which the subscriber
 can just barely keep up.
@@ -534,13 +865,6 @@ Instead, evenly-spaced messages should be sent to get an accurate measurement
 of the maximum sustainable throughput.
 This gives you a baseline for calculating the size of the buffer required to
 handle bursts of a maximum intensity and duration.
-
-Similarly, sending bursts of traffic that exceed the maximum
-sustainable throughput is not desired for measuring the latency under load
-of the underlying messaging system.
-Again, a burst can be accommodated temporarily by buffering the excess messages,
-but this simply adds buffering latency,
-which is not the latency that we are trying to measure.
 
 When running at or near the maximum sustainable throughput,
 some amount of buffering latency is inevitable due to the subscriber being
