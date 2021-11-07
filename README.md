@@ -335,62 +335,14 @@ it sets affinity to the CPU core number specified with the "-a"
 command-line option.
 
 For the subscriber (um_perf_sub.c),
-the time-critical thread is the SMX receiver thread.
+the time-critical thread is the receiver thread (context thread).
 As with the publisher program,
 the subscriber program is typically started with affinity set to a
 non-critical CPU core, typically 1, using the "taskset" command.
 The publisher creates its context, which creates the context thread,
 inheriting the CPU affinity to core 1.
-However, at this point, the SMX receiver thread is not created.
-That thread is not created by the UM code when a receiver is resolved
-to an SMX source for the first time.
-The SMX receiver thread sets its affinity during the processing of the
+The receiver thread sets its affinity during the processing of the
 "Beginning Of Stream" (LBM_MSG_BOS) receiver event.
-
-Note that the publisher does not create a receiver object,
-and therefore never has an SMX receiver thread.
-
-#### Jitter Measurement
-
-The "-j jitter_loops" command-line option changes um_perf_sub's function.
-It does not send any messages.
-
-Instead, it produces a rough measure of system-induced outliers (jitter).
-It does this by simply taking two high-resolution timestamps in a row
-using [clock_gettime()](https://linux.die.net/man/3/clock_gettime),
-and calculating the difference in nanoseconds.
-This measurement is repeated a very large number of times,
-keeping track of the minimum and maximum times.
-
-The "minimum" time represents the execution time of a single call to
-clock_gettime() (12-13 nanoseconds on our test hosts).
-The "maximum" time represents the longest time that Linux interrupted the
-execution of the loop.
-See [Measurement Outliers](measurement-outliers) for information about
-execution interruptions.
-
-We commonly measure interruptions above 100 microseconds,
-sometimes above 300 microseconds.
-
-#### Flags
-
-The "-l o_flags" command-line option allows changes to the publisher's
-behavior.
-The value is an integer organized as a bit map.
-The currently-defined values are:
-* 1 (FLAGS_TIMESTAMP) -
-The publisher includes a timestamp in the outgoing message.
-The subscriber must be run without the "-f" flag.
-The subscriber will detect the timestamp and will perform a per-message
-latency calculation.
-* 2 (FLAGS_NON_BLOCKING) -
-The publisher does non-blocking sends.
-This MUST not be used when measuring the maximum sustainable message rate.
-* 4 (FLAGS_GENERIC_SRC) -
-The publisher uses generic source send APIs instead
-of the optimized SMX-specific APIs.
-Since this needlessly slows down performance,
-it has not been used for this analysis.
 
 #### Linger Time
 
@@ -401,11 +353,6 @@ allow any receivers to get caught up.
 Once the source is deleted, a receiver that is behind might experience
 a type of unrecoverable loss called
 "[tail loss](https://ultramessaging.github.io/currdoc/doc/Design/fundamentalconcepts.html#tailloss)".
-
-In the case of SMX,
-if the publisher deletes the source object before the subscriber is
-able to read all messages from it, the subscriber can experience
-tail loss.
 
 #### Warmup
 
@@ -423,7 +370,7 @@ performance measurements.
 Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-f]
     [-s spin_cnt] [-t topic]
 where:
-  -a affinity_cpu : CPU number (0..N-1) for SMX receive thread [%d]
+  -a affinity_cpu : CPU number (0..N-1) for receive thread [%d]
   -c config : configuration file; can be repeated [%s]
   -f : fast - minimal processing in message receive (no latency calcs)
   -s spin_cnt : empty loop inside receiver callback [%d]
