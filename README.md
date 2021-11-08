@@ -151,7 +151,7 @@ Here are the results from the full test suite:
 Test | Message Rate | Summary
 ---- | ------------ | ------------
 1 | 1.5M | Streaming (no Stores)
-2 | 720K | 1 SPP Store (disk-based)
+2 | 550K | 1 SPP Store (disk-based)
 3 | 860K | 1 RPP Store
 4 | 830K | 3 RPP Stores (Q/C)
 5 | 1.07M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
@@ -371,7 +371,7 @@ It may be helpful to expand this window vertically to maximize the number
 of lines displayed.
 
 ***Window 2***: run "taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150".
-Substitute the "-a 0x01" and the "-a 7" with the non-time-critical CPU bitmask
+Substitute the "-a 0x01" and the "-a 1" with the non-time-critical CPU bitmask
 and the time-critical CPU number you previously chose.
 For example:
 ````

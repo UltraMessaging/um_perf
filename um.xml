@@ -8,7 +8,7 @@
         <option name="resolver_multicast_address" default-value="239.101.3.1"/>
         <option name="mim_incoming_address" default-value="0.0.0.0"/>
         <option name="transport_lbtrm_data_rate_limit" default-value="100000000000"/>
-        <option name="transport_lbtrm_receiver_socket_buffer" default-value="93554432"/>
+        <option name="transport_lbtrm_receiver_socket_buffer" default-value="128000000"/>
         <option name="dynamic_fragmentation_reduction" default-value="1"/>
         <option name="transport_lbtrm_datagram_max_size" default-value="1472"/>
         <option name="fd_management_type" default-value="epoll"/>

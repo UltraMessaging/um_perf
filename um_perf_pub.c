@@ -103,7 +103,7 @@ void get_my_opts(int argc, char **argv)
   o_histogram = strdup("0,0");
   o_persist = strdup("");
   o_topics = strdup("");
-  o_warmup = strdup("100000,100000");
+  o_warmup = strdup("15,5");
   o_xml_config = strdup("");
 
   while ((opt = getopt(argc, argv, "ha:c:gH:l:m:n:p:r:t:w:x:")) != EOF) {
