@@ -137,13 +137,24 @@ In the results below, "K" represents 1,000; "M" represents 1,000,000;
 
 ## RESULTS
 
+Using load-balanced Stores, UM can easily sustain 1M messages/sec.
+
+Load-balanced means that the sending thread sends messages to three
+different topics.
+Each topic is handled by its own Store process.
+The subscriber receives from all three topics.
+
+Note that inter-topic messages ordering is not guaranteed.
+
+Here are the results from the full test suite:
+
 Test | Message Rate | Summary
 ---- | ------------ | ------------
 1 | 1.5M | Streaming (no Stores)
-2 | 750K | 1 SPP Store (disk-based)
+2 | 720K | 1 SPP Store (disk-based)
 3 | 860K | 1 RPP Store
 4 | 830K | 3 RPP Stores (Q/C)
-5 | 1.07M | 3 sources, load balanced
+5 | 1.07M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 6 | 1.4M | 3 streaming sources (no Stores)
 
 ### Reproduction
@@ -414,7 +425,7 @@ I.e., in this test, it might be 50100000 or 50099999.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,100000
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,50000
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -454,11 +465,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,100000 -p s
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,50000 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=66666666182, result_rate=750000.005453, global_max_tight_sends=125, max_flight_size=21385
+actual_sends=50000000, duration_ns=69444447917, result_rate=719999.963997, global_max_tight_sends=205, max_flight_size=51549
 ````
 
 #### Test 3: Single RPP Store
@@ -491,7 +502,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,100000 -p r
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -554,7 +565,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,100000 -p r
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -618,7 +629,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,100000 -p r
+taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
