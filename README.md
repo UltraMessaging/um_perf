@@ -183,7 +183,7 @@ The test programs use the "-a" command-line option to change the affinity
 of the time-critical threads to the time-critical CPUs.
 See [Affinity](#affinity).
 
-ATTENTION: the "taskset" command's "-a" option expects a bitmap of CPUs,
+ATTENTION: the "taskset" command expects a bitmap of CPUs,
 with 0x01 representing CPU number 0, 0x02 representing CPU 1,
 0x04 representing CPU 2, etc.
 The um_perf tools' "-a" options expect the actual CPU number.
@@ -370,12 +370,12 @@ This displays per-CPU statistics.
 It may be helpful to expand this window vertically to maximize the number
 of lines displayed.
 
-***Window 2***: run "taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150".
+***Window 2***: run "taskset 0x01 um_perf_jitter -a 1 -j 200000000 -s 150".
 Substitute the "-a 0x01" and the "-a 1" with the non-time-critical CPU bitmask
 and the time-critical CPU number you previously chose.
 For example:
 ````
-taskset -a 0x01 um_perf_jitter -a 1 -j 200000000 -s 150
+taskset 0x01 um_perf_jitter -a 1 -j 200000000 -s 150
 o_affinity_cpu=1, o_jitter_loops=200000000, o_spin_cnt=150, ts_min_ns=186, ts_max_ns=49743,
 ````
 
@@ -415,7 +415,7 @@ Single source, single receiver, streaming (no Store).
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -425,7 +425,7 @@ I.e., in this test, it might be 50100000 or 50099999.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,50000
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,50000
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -443,7 +443,7 @@ This characterizes a single disk-based store's performance (throughput).
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -465,7 +465,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,50000 -p s
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,50000 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -480,7 +480,7 @@ For the hardware we used, RPP is 15% faster than SPP.
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -502,7 +502,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -517,7 +517,7 @@ a single-store Q/C group.
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -565,7 +565,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -581,7 +581,7 @@ This demonstrates balancing the load across multiple Stores
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -629,7 +629,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,50000 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -643,7 +643,7 @@ as fast as a single streaming source.
 
 Host 1 (subscriber):
 ````
-EF_POLL_USEC=-1 taskset -a 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
 "num_rx_msgs=0, num_unrec_loss=0,".
@@ -652,7 +652,7 @@ message counts.
 
 Host 2 (publisher):
 ````
-taskset -a 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -787,7 +787,7 @@ since that is the thread that reads the network socket.
 The context thread's affinity is set when the context thread delivers the BOS event
 (beginning of session) to the application's receiver callback.
 
-ATTENTION: the "taskset" command's "-a" option expects a bitmap of CPUs,
+ATTENTION: the "taskset" command expects a bitmap of CPUs,
 with 0x01 representing CPU number 0, 0x02 representing CPU 1,
 0x04 representing CPU 2, etc.
 The um_perf tools' "-a" options expect the actual CPU number.

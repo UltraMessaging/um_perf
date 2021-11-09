@@ -37,8 +37,9 @@
 static int o_affinity_cpu = 1;
 static char *o_config = NULL;
 static int o_generic_src = 0;
-static char *o_histogram = NULL;
+static char *o_histogram = NULL;  /* -H */
 static int o_linger_ms = 1000;
+static int o_loss_percent = 0;  /* -L */
 static int o_msg_len = 700;
 static int o_num_msgs = 10000000;
 static char *o_persist = NULL;
@@ -62,7 +63,7 @@ int registration_complete;
 int cur_flight_size;
 int max_flight_size;
 
-char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -79,6 +80,7 @@ void help() {
       "  -g : generic source [%d]\n"
       "  -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]\n"
       "  -l linger_ms : linger time before source delete [%d]\n"
+      "  -L loss_percent : Source-side artificial packet loss (after warmup) [%d]\n"
       "  -m msg_len : message length [%d]\n"
       "  -n num_msgs : number of messages to send [%d]\n"
       "  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]\n"
@@ -87,7 +89,7 @@ void help() {
       "  -w warmup_loops,warmup_rate : messages to send before measurement [%s]\n"
       "  -x xml_config : XML configuration file [%s]\n"
       , o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms
-      , o_msg_len, o_num_msgs, o_persist, o_rate, o_topics
+      , o_loss_percent, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics
       , o_warmup, o_xml_config
   );
   exit(0);
@@ -106,7 +108,7 @@ void get_my_opts(int argc, char **argv)
   o_warmup = strdup("15,5");
   o_xml_config = strdup("");
 
-  while ((opt = getopt(argc, argv, "ha:c:gH:l:m:n:p:r:t:w:x:")) != EOF) {
+  while ((opt = getopt(argc, argv, "ha:c:gH:l:L:m:n:p:r:t:w:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
       case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
@@ -118,6 +120,7 @@ void get_my_opts(int argc, char **argv)
       case 'g': o_generic_src = 1; break;
       case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
       case 'l': SAFE_ATOI(optarg, o_linger_ms); break;
+      case 'L': SAFE_ATOI(optarg, o_loss_percent); break;
       case 'm': SAFE_ATOI(optarg, o_msg_len); break;
       case 'n': SAFE_ATOI(optarg, o_num_msgs); break;
       case 'p': free(o_persist); o_persist = strdup(optarg); break;
@@ -272,7 +275,7 @@ int handle_src_event(int event, void *extra_data, void *client_data)
       registration_complete++;
       break;
     case LBM_SRC_EVENT_UME_MESSAGE_STABLE_EX:
-      __atomic_sub_fetch(&cur_flight_size, 1, __ATOMIC_SEQ_CST);
+      __sync_fetch_and_sub(&cur_flight_size, 1);
       ASSRT(cur_flight_size >= 0);  /* Die if negative. */
       break;
     case LBM_SRC_EVENT_SEQUENCE_NUMBER_INFO:
@@ -479,7 +482,7 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
         }
       }
 
-      int cur = __atomic_add_fetch(&cur_flight_size, 1, __ATOMIC_SEQ_CST);
+      int cur = __sync_fetch_and_add(&cur_flight_size, 1);
       if (cur > max_flight_size) {
         max_flight_size = cur;
       }
@@ -520,8 +523,8 @@ int main(int argc, char **argv)
   }
 
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_cpu=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist='%s', o_rate=%d, o_topics='%s', o_warmup=%s, xml_config=%s, \n",
-      o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics, o_warmup, o_xml_config);
+  printf("o_affinity_cpu=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_loss_percent=%d, o_msg_len=%d, o_num_msgs=%d, o_persist='%s', o_rate=%d, o_topics='%s', o_warmup=%s, xml_config=%s, \n",
+      o_affinity_cpu, o_config, o_generic_src, o_histogram, o_linger_ms, o_loss_percent, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics, o_warmup, o_xml_config);
 
   msg_buf = (char *)malloc(o_msg_len);
 
@@ -565,6 +568,10 @@ int main(int argc, char **argv)
   if (warmup_loops > 1) {
     /* Warmup loops to get CPU caches loaded. */
     send_loop(warmup_loops, warmup_rate);
+  }
+
+  if (o_loss_percent > 0) {
+    lbm_set_lbtrm_src_loss_rate(o_loss_percent);
   }
 
   /* Measure overall send rate by timing the main send loop. */
