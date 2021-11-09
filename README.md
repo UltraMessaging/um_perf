@@ -666,8 +666,8 @@ actual_sends=50000000, duration_ns=35305822773, result_rate=1416196.991683, glob
 ````
 Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g]
   [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms]
-  [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic]
-  [-w warmup_loops,warmup_rate] [-x xml_config]
+  [-L loss_percentage] [-m msg_len] [-n num_msgs] [-s store_list]
+  [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]
 where:
   -h : print help
   -a affinity_cpu : bitmap for CPU affinity for send thread [%d]
@@ -675,6 +675,7 @@ where:
   -g : generic source [%d]
   -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]
   -l linger_ms : linger time before source delete [%d]
+  -L loss_percent : Source-side artificial packet loss (after warmup) [%d]
   -m msg_len : message length [%d]
   -n num_msgs : number of messages to send [%d]
   -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]
