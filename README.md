@@ -43,6 +43,8 @@
     - [Host S2](#host-s2)
     - [Host S3](#host-s3)
 
+<sup>(table of contents from https://luciopaiva.com/markdown-toc/)</sup>
+
 ## COPYRIGHT AND LICENSE
 
 All of the documentation and software included in this and any
