@@ -1,9 +1,9 @@
 #!/bin/sh
 # bld.sh - build the programs on Linux.
 
-# LBM=$HOME/UMP_6.14/Linux-glibc-2.17-x86_64  # Modify according to your needs.
+LBM=$HOME/UMP_6.14/Linux-glibc-2.17-x86_64  # Modify according to your needs.
 
-LBM=$HOME/UMP_6.10.0.1/Linux-glibc-2.5-x86_64  # Modify according to your needs.
+# LBM=$HOME/UMP_6.10.0.1/Linux-glibc-2.5-x86_64  # Modify according to your needs.
 
 export LD_LIBRARY_PATH=$LBM/lib
 
