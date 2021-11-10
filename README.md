@@ -87,7 +87,7 @@ fully-provisioned production datacenter using a minimally-provisioned lab.
 
 Here are the persistence tests:
 1. Single source, single receiver, streaming (no Store).
-2. Single source, single SPP-based Store, single receiver.
+2. Single source, single SPP-based Store (disk-based), single receiver.
 This characterizes a single disk-based store's performance (throughput).
 3. Single source, single RPP-based Store, single receiver.
 This allows us to compare SPP to RPP. For the hardware we used,
@@ -102,6 +102,14 @@ This demonstrates balancing the load across multiple Stores
 6. Three sources (single sending thread), streaming (no Store).
 This demonstrates that sending to three streaming sources can send almost as
 fast as a single streaming source.
+7. Single source, batching 2 messages,
+single SPP-based Store (disk-based), single receiver.
+This characterizes application batching 2 messages together per send.
+8. Three sources (single sending thread), batching 2 messages,
+three RPP-based Stores (one per source),
+three receivers (single receiver thread).
+This demonstrates balancing the load of application batched messages across
+multiple Stores (each Store only sees one-third of the messages).
 
 The method of discovering the maximum sustainable throughput is
 to run a publisher at a given message rate for at least 1 minute
@@ -155,6 +163,9 @@ Test | Message Rate | Summary
 4 | 830K | 3 RPP Stores (Q/C)
 5 | 1.07M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 6 | 1.4M | 3 streaming sources (no Stores)
+7 | 940K | 1 SPP Store (disk-based), application batching
+8 | 1.64M | 3 sources, load balanced to 3 RPP Stores (not Q/C),
+application batching
 
 ### Reproduction
 
@@ -424,7 +435,7 @@ I.e., in this test, it might be 50100000 or 50099999.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 100000,50000
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1 -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -464,7 +475,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 100000,50000 -p s
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -501,7 +512,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -564,7 +575,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -628,12 +639,13 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000,50000 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
 actual_sends=50000000, duration_ns=46499766856, result_rate=1075274.208467, global_max_tight_sends=48730678, max_flight_size=109702
 ````
+
 #### Test 6: Three-Source Streaming
 
 Three sources (single sending thread), streaming (no Store).
@@ -657,6 +669,144 @@ When the publisher completes, the output should be something like:
 ````
 actual_sends=50000000, duration_ns=35305822773, result_rate=1416196.991683, global_max_tight_sends=49507149, max_flight_size=50100000
 ````
+
+#### Test 7: Single SPP Store, Application Batching
+
+Single source, batching 2 messages,
+single SPP-based Store (disk-based), single receiver.
+This characterizes application batching 2 messages together per send.
+
+NOTE: an application batching algorithm is *not* included in the source code.
+Instead, the message size was simply increased to 1420,
+enough to include two 700-byte messages plus 20 bytes of overhead.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host 2 (publisher):
+````
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 470000 -t topic1 -w 15,5
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=25000000, duration_ns=53191488653, result_rate=470000.006262, global_max_tight_sends=14, max_flight_size=14754
+````
+
+Given the send rate of 470K, and that each send contains two application
+messages, the application message rate is 940K messages/sec.
+
+#### Test 8: Load Balance, Application Batching
+
+Three sources (single sending thread), batching 2 messages,
+three RPP-based Stores (one per source),
+three receivers (single receiver thread).
+This demonstrates balancing the load of application batched messages across
+multiple Stores (each Store only sees one-third of the messages).
+
+NOTE: an application batching algorithm is *not* included in the source code.
+Instead, the message size was simply increased to 1420,
+enough to include two 700-byte messages plus 20 bytes of overhead.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=0, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host S2 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_2a.xml | tee store2a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host S3 (Store):
+````
+onload umestored -a "4,2,4,4,4" store_3a.xml | tee store3a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host 2 (publisher):
+````
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
+````
+
+Given the send rate of 823K, and that each send contains two application
+messages, the application message rate is 1.64M messages/sec.
+
+## WARMUP
+
+The publisher test tool has a command-line option:
+````
+  -w warmup_loops,warmup_rate
+````
+This sends a series of initial messages at a low rate to the Store(s)
+before the throughput send loop starts.
+It is needed because the Store creates its files and other infrastructure
+after the first application message is sent.
+This activity consumes enough time that, at the very high throughput rate,
+the Store's socket buffer can overflow and result in loss.
+
+The time duration of the warmup period is most important,
+not the number of messages.
+We find that after receiving the first message of a new source,
+the Store requires about 2 seconds to stablize and be ready for the
+full throughput.
+The message rate during that warmup period should be no more than 10%
+of the maximum-sustainable message rate.
+(Our testing here extends that to 3 seconds for reliability.)
 
 ## TOOL USAGE NOTES
 
@@ -929,6 +1079,253 @@ susceptible to execution [interruptions](#interruptions).
 This contributes to latency variation since messages after a
 subscriber interruption can experience buffering latency if the subscriber
 hasn't yet gotten caught up.
+
+## Notes on Going Fast
+
+### Core Count and Network Interfaces
+
+The IT industry has been moving towards consolidation of servers to save costs.
+This involves moving to servers with high core counts -
+64 core servers are common, higher counts are readily available.
+However, due to the way that the cores must compete for main memory,
+these high-count servers tend to have lower clock frequencies and slower
+memory accesses.
+The result is that while you can have very many threads running in parallel,
+the speed of a given thread can be lower than in a server with fewer cores.
+When you are trying to maximize throughput of a single thread,
+you will probably need a greater number of servers, each with fewer cores.
+Over-consolidation will lead to failure to achieve the highest throughput.
+
+The creation of virtual machines with small numbers of cores does not solve
+this issue if the underlying hardware server has low clock frequencies and
+low memory bandwidth.
+
+In particular, users of "blade servers" have had bad luck achieving high
+throughput and low latency.
+This is especially true for blade enclosure that aggregate network
+interfaces into interconnect devices (such as switches) built into the
+blade enclosure or in networking blades.
+This can force network traffic to be routed via software to the required
+blade(s).
+This can result in high loss rates, especially for multicast traffic.
+
+Intelligent Batching
+
+When we send 700-byte messages in separate packets,
+we can get a send rate of 1.5M packets per second.
+However, servers with slower CPUs might not be able to keep up with this
+packet rate.
+Batching might be needed to reliably keep up.
+
+Batching - the combining of many small application messages into a smaller
+number of network packets - has gotten a bad reputation among
+low-latency developers.
+This is because many batching algorithms include timers to flush out partial
+batches, which can introduce milliseconds of latency.
+For this reason, most low-latency applications flush every message.
+However, as the throughput requirement rises,
+there will come a point where it is not possible to achieve the desired
+message rate without batching.
+
+Informatica recommends using an algorithm that we call "intelligent batching"
+to provide batching without introducing latency outliers.
+In fact, intelligent batching can reduce average latency in an intense
+burst of messages, while retaining optimum latency at low message rates.
+
+The basic principle of intelligent batching is to have some knowledge of
+the availability of "future" messages.
+For example, you might have a sending thread that pulls messages off a
+queue and sends them to the messaging layer.
+After dequeuing a message, the sending thread can examine the queue to
+determine if there is another message waiting.
+If so, the application can take appropriate steps to combine the current
+message with that future message.
+(The details depend on the nature of the application and the type of
+messaging layer send function being used.)
+This provides a self-adaptive algorithm - at low message rates,
+each message is immediately flushed without waiting.
+As the message rate increases, messages will become available more quickly
+than they can be sent individually.
+At the point where the send thread is one message behind,
+it will automatically batch two messages, which will essentially let the
+send thread catch up.
+
+This is how TCP can achieve very high throughputs.
+The send-side socket buffer is the "queue", and the device driver is the
+"send thread".
+When the incoming data rate is higher than the driver can keep up with,
+the socket buffer will build up.
+The next time the driver is ready to send a packet,
+it will pull a full packet's worth of data (minus protocol overhead)
+and send it.
+
+For an application that has no practical means of determining the
+availability of future messages,
+a queue and send thread can be added to the application design.
+This provides a TCP-like self-adapting batching algorithm that optimizes
+latency at both low and high message rates.
+
+If you conclude that you cannot tolerate this batching,
+you can send messages in individual packets.
+You will not be able to reliably sustain the same rate as batching over a
+long-running test, but if your sustainable rate meets your requirements,
+then we still recommend designing your message format to accommodate
+application batching in the future should you require it.
+It can be very difficult to retrofit message format changes after
+initial deployment.
+
+### Burst VS. Sustain?
+
+When designing a high-throughput system,
+it is important to set goals for expected average message rate and
+expected maximum burst message rate.
+It is prudent to design the system to be capable of sustaining the
+maximum burst message rate over a significant period,
+much longer than the expected burst durations.
+
+In this demonstration, we can sustain 1.64M msgs/sec.
+However, be aware that at this rate, the 10G Ethernet is fully saturated
+(possibly "over" saturated; see "Exceeding Line Rate" below).
+This leaves no headroom for future growth.
+
+Informatica assumes that the requirement to handle 1.5M msgs/sec is a
+case of ensuring that the system can sustain the expected burst rates,
+not that the planned production system will routinely maintain
+1.5M msgs/sec over long periods of time.
+
+#### Loss Recovery at 1.64M Msgs/Sec
+
+In our testing, we saw zero loss.
+This is because the tests were very clean - there was only one publisher
+and one subscriber with no other traffic to interfere.
+The subscriber was able to keep up with the publisher,
+so no buffers overflowed.
+
+We did some testing introducing artificial loss.
+The results were expected: running at 1.64M msgs/sec with 712-byte
+messages leaves no bandwidth for loss recovery.
+Our testing has verified that a very low loss rate can be recovered
+successfully at a high sustained message rate.
+But any loss more than a few packets per second will result in
+significant unrecoverable loss for the lossy receiver.
+The receiver does not degrade gradually,
+it degrades suddenly and significantly ("falls off a cliff").
+
+However, 1.64M msgs/sec is only expected during bursts of traffic,
+followed by significantly lower message rate,
+then LBT-RM can be easily tuned to recover from significant loss
+during those bursts.
+
+The best approach here is to model the expected traffic patterns with
+a traffic generator,
+with loss artificially introduced during bursts,
+and verify that the LBT-RM algorithms properly recover the loss.
+
+### Exceeding Line Rate?
+
+Look again at one of the lines of output of the "um_perf_pub":
+
+````
+actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
+````
+
+Be aware that the 1420 bytes of user data is combined with overhead
+bytes from UM, from UDP, and from IP to produce a 1494-byte IP datagram.
+This datagram is encapsulated in an ethernet frame that adds 30 more bytes.
+And the Ethernet standard requires an interpacket gap equal to 12 bytes.
+So each frame represents 8*(1494+30+12) = 12,288 bit times.
+The publisher sent 50,000,000 of those 12,288-bit frames in 60,716,897,922 ns.
+That works out to a line rate of 10.11 gigabits per second.
+But the actual network should only run at 10 gigabits per second.
+How is it possible that our test ran faster than 10G?
+
+If we assume that Solarflare eliminates the interpacket gap,
+we get 10.04 gigabits per second.
+This leads us to suspect that Solarflare is not abiding by the 12 byte time
+interpacket gap.
+According to Wikipedia:
+````
+Some manufacturers design adapters with a smaller interpacket gap for
+slightly higher data transfer rates.
+That can lead to data loss when mixed with standard adaptors.
+````
+- https://en.wikipedia.org/wiki/Interpacket_gap#Ethernet
+
+Informatica recommends using the same vendor's NICs for all receivers
+of high-throughput data streams.
+
+### Busy Looping
+
+The subscriber commands are run with:
+
+````
+EF_POLL_USEC=-1 taskset -a 0x10 onload ...
+````
+
+The "EF_POLL_USEC=-1" environment variable is a special Onload control
+that tells it to busy loop when epoll is called.
+This causes the UM context thread to become CPU-bound and consume 100%
+of the CPU core, independent of message rate.
+This improves the ability of the receiver to keep up with high rates.
+In our testing, it was not needed for sending 1424-byte messages.
+However, for smaller messages that can achieve higher rates,
+it quickly became necessary.
+
+Given that busy looping is also recommended to minimize latency,
+we recommend its use in all critical data flows.
+
+### Application Optimizations
+
+The applications used in this demonstration were not written specifically
+to test the maximum possible throughput with the maximum stability.
+A number of optimizations should be made to real applications that
+require extremely high throughput.
+
+Recommended application optimizations:
+1. Use the XSP feature to map heavy data streams to specific threads,
+each of which is given exclusive use to a CPU core.
+No more CPU contention between critical threads.
+2. Critical processing threads should not be burdened with collecting and
+reporting logs and statistics.
+We recommend the use of the Automatic Monitoring feature.
+3. The UM logger callback has the potential to introduce latencies,
+depending on how the application writes the logs.
+We recommend passing logs to a queue for processing by a separate
+non-critical thread.
+Note that this queue must be multi-writer (different threads can be enqueuing)
+and the enqueue operation should not use locks or dynamic memory
+(malloc/free, new/delete).
+
+### Server Optimizations
+
+The servers in Informatica's labs have had very few optimizations done to them.
+We want our systems to be as off-the-shelf as practical so that our testing
+is applicable to as many customer environments as possible.
+
+A high-performance production system should have various optimizations done
+to minimize interruptions of critical application threads by the operating
+system.
+However,
+it is very difficult to give generic advice here that applies to everybody.
+For example, for users of kernel network drivers,
+IRQs and interrupt coalescing are important considerations for
+latency/throughput tradeoffs.
+But not for many Onload users who avoid using interrupts.
+There are too many tradeoffs to provide a simple checklist of tunings.
+
+Here are some resources:
+
+https://access.redhat.com/sites/default/files/attachments/201501-perf-brief-low-latency-tuning-rhel7-v2.1.pdf
+
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_for_real_time/7/html-single/tuning_guide/index
+
+https://access.redhat.com/articles/3720611  (Requires Red Hat subscription.)
+
+https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
+
+Note that even without these optimizations,
+our test was able to send and receive at full line rate.
+So the above optimizations are recommended to provide additional headroom.
 
 ## INFORMATICA TEST HARDWARE
 
