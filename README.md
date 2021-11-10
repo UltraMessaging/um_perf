@@ -1253,7 +1253,7 @@ much longer than the expected burst durations.
 In this demonstration, we can sustain 1.64M msgs/sec.
 However, be aware that at this rate, the 10G Ethernet is fully saturated
 (possibly "over" saturated; see "Exceeding Line Rate" below).
-This leaves no headroom for future growth.
+This leaves no headroom for error recovery or future growth.
 
 Informatica assumes that the requirement to handle 1.5M msgs/sec is a
 case of ensuring that the system can sustain the expected burst rates,
@@ -1318,8 +1318,8 @@ slightly higher data transfer rates. That can lead to data loss when
 mixed with standard adaptors.
 ````
 
-Informatica recommends using the same vendor's NICs for all receivers
-of high-throughput data streams.
+Informatica recommends using the same vendor's NICs for all publishers
+and subscribers of high-throughput data.
 
 ### Busy Looping
 
