@@ -106,7 +106,7 @@ Not persistence, but provides a baseline rate.
 2. Single source, single SPP-based Store (disk-based), single receiver.
 This characterizes a single disk-based store's performance (throughput).
 3. Single source, single RPP-based Store, single receiver.
-This allows us to compare SPP to RPP (see [RPP Vs. SPP](#rpp-vs--spp).
+This allows us to compare SPP to RPP (see [RPP Vs. SPP](#rpp-vs-spp).
 For the hardware we used, SPP is 35% slower than RPP.
 4. Single source, three RPP-based Stores in quorum/consensus, single receiver.
 This allows us to measure the impact of a 3-Store Q/C group compared to
