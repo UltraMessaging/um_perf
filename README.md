@@ -106,8 +106,8 @@ Not persistence, but provides a baseline rate.
 2. Single source, single SPP-based Store (disk-based), single receiver.
 This characterizes a single disk-based store's performance (throughput).
 3. Single source, single RPP-based Store, single receiver.
-This allows us to compare SPP to RPP. For the hardware we used,
-RPP is 15% faster than SPP.
+This allows us to compare SPP to RPP (see [RPP Vs. SPP](#rpp-vs--spp).
+For the hardware we used, SPP is 35% slower than RPP.
 4. Single source, three RPP-based Stores in quorum/consensus, single receiver.
 This allows us to measure the impact of a 3-Store Q/C group compared to
 a single-store Q/C group.
@@ -138,7 +138,7 @@ or if the publisher exhausts flight size
 (LBM_EWOULDBLOCK send error) due to exceeding the disk write speed.)
 
 Note that the comparisons will be *very* dependent on the underlying
-hardware (server and disk).
+hardware (CPU and disk).
 Users are strongly advised to perform the same tests on hardware that
 is as close as possible to their anticipated production hardware.
 
@@ -236,7 +236,7 @@ test hosts.
 ### Choose CPUs
 
 Different hardware systems assign CPU numbers to NUMA nodes differently.
-Our servers do even/odd assignments, but there are
+Our hosts have even/odd assignments, but there are
 [other numbering schemes](https://itectec.com/unixlinux/understanding-output-of-lscpu/).
 
 Enter the Linux command "lscpu". For example:
@@ -1103,38 +1103,81 @@ hasn't yet gotten caught up.
 
 ## Notes on Going Fast
 
+### RPP Vs. SPP
+
+There are two forms of persistence that UM supports:
+* SPP - Source-Paced Persitence.
+* RPP - Receiver-Paced Persistence.
+
+These forms differ in many ways, most of which are not relavant to this
+report.
+Of particular interest when measuring performance is the way that the
+disk is used.
+
+With SPP, every message sent by the source is recorded to disk.
+
+With RPP, messages are normally not written to disk.
+Instead, messages are deleted from the Store after the receiver(s) acknowledge
+the messages, typically without being written to disk.
+See [RPP: Receiver-Paced Persistence](https://ultramessaging.github.io/currdoc/doc/UME/operationalview.html#receiverpacedpersistenceoperations)
+for full details.
+
+Most users of persistence configure for SPP,
+so measuring SPP performance is the primary goal of this report.
+However, SPP's performance is very dependent on a host's disk speed.
+During engineering testing, it is rare for a test lab to have multiple
+systems with fast disks.
+
+By testing with RPP, you can get a good idea of the Store's performance
+on a given host, even of that host does not have a high-speed disk.
+
+In general, RPP will out-perform SPP on a fast disk,
+so performance estimates need to be adjusted accordingly.
+For the hardware we used, SPP is 35% slower than RPP.
+
 ### Core Count and Network Interfaces
 
-The IT industry has been moving towards the consolidation of servers to save costs.
-This involves moving to servers with high core counts -
-64 core servers are common; higher counts are readily available.
+The IT industry has been moving towards fewer hosts with higher core counts
+in each host (a.k.a. "server consolidation").
+64 core hosts are common; higher core counts are readily available.
 However, because the cores must compete for main memory,
-these high-count servers tend to have lower clock frequencies and slower
+these high-count hosts tend to have lower clock frequencies and slower
 memory accesses.
 The result is that while you can have very many threads running in parallel,
-the speed of a given thread can be lower than in a server with fewer cores.
+the speed of a given thread can be lower than in a host with fewer cores.
 When you are trying to maximize the throughput of a single thread,
-you may need more servers, each with fewer cores.
+you may need more hosts with with fewer cores each.
 Over-consolidation will lead to failure to achieve the highest throughput.
 
 The creation of virtual machines with small numbers of cores does not solve
-this issue if the underlying hardware server has low clock frequencies and
+this issue if the underlying server hardware has low clock frequencies or
 low memory bandwidth.
 
 In particular, users of "blade servers" have had bad luck achieving high
 throughput and low latency.
-This is especially true for blade enclosure that aggregate network
+This is especially true for blade enclosures that aggregate network
 interfaces into interconnect devices (such as switches) built into the
 blade enclosure or in networking blades.
 This can force network traffic to be routed via software to the required
 blade(s).
-This can result in high loss rates, especially for multicast traffic.
+This can result in high packet loss, especially for multicast traffic.
 
-Intelligent Batching
+Finally, there are specialized network interface cards from vendors
+like Xylinx (formerly Solarflare) and Cisco (formerly Exablaze)
+that support "kernel-bypass" drivers.
+This technology is necessary to achieve the very high performance
+demonstrated in this report.
+
+Ultra Messaging is designed to get the highest messaging performance
+possible from any given hardware platform.
+However, to achieve the highest possible performance,
+harware must be chosen with attention to these issues.
+
+### Intelligent Batching
 
 When we send 700-byte messages in separate packets,
 we can get a send rate of 1.5M packets per second.
-However, servers with slower CPUs might not be able to keep up with this
+However, hosts with slower CPUs might not be able to keep up with this
 packet rate.
 Batching might be needed to keep up reliably.
 
@@ -1317,9 +1360,9 @@ Note that this queue must be multi-writer (different threads can be enqueuing)
 and the enqueue operation should not use locks or dynamic memory
 (malloc/free, new/delete).
 
-### Server Optimizations
+### Host Optimizations
 
-The servers in Informatica's labs have had very few optimizations done to them.
+The hosts in Informatica's labs have had very few optimizations done to them.
 We want our systems to be as off-the-shelf as practical so that our testing
 applies to as many customer environments as possible.
 
