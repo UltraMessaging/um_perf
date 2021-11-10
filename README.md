@@ -179,13 +179,13 @@ Here are the results from the full test suite:
 Test | Message Rate | Summary
 ---- | ------------ | ------------
 1 | 1.4M | Streaming (no Stores)
-2 | 550K | 1 SPP Store (disk-based)
-3 | 860K | 1 RPP Store
-4 | 830K | 3 RPP Stores (Q/C)
-5 | 1.07M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
-6 | 1.4M | 3 streaming sources (no Stores)
+2 | 540K | 1 SPP Store (disk-based)
+3 | 540K | 1 RPP Store
+4 | 550K | 3 RPP Stores (Q/C)
+5 | 1M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
+6 | 1.5M | 3 streaming sources (no Stores)
 7 | 940K | application batching, 1 SPP Store (disk-based)
-8 | 1.64M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
+8 | 1.6M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
 
