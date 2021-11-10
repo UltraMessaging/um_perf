@@ -113,10 +113,10 @@ This demonstrates balancing the load across multiple Stores
 6. Three sources (single sending thread), streaming (no Store).
 This demonstrates that sending to three streaming sources can send almost as
 fast as a single streaming source.
-7. Single source, batching 2 messages,
+7. Single source, batching two messages,
 single SPP-based Store (disk-based), single receiver.
-This characterizes application batching 2 messages together per send.
-8. Three sources (single sending thread), batching 2 messages,
+This characterizes application batching two messages together per send.
+8. Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load of application batched messages across
@@ -162,7 +162,7 @@ different topics.
 Each topic is handled by its own Store process.
 The subscriber receives from all three topics.
 
-Note that inter-topic messages ordering is not guaranteed.
+Note that inter-topic message ordering is not guaranteed.
 
 Here are the results from the full test suite:
 
@@ -683,13 +683,13 @@ actual_sends=50000000, duration_ns=35305822773, result_rate=1416196.991683, glob
 
 #### Test 7: Single SPP Store, Application Batching
 
-Single source, batching 2 messages,
+Single source, batching two messages,
 single SPP-based Store (disk-based), single receiver.
-This characterizes application batching 2 messages together per send.
+This characterizes application batching two messages together per send.
 
 NOTE: an application batching algorithm is *not* included in the source code.
 Instead, the message size was simply increased to 1420,
-enough to include two 700-byte messages plus 20 bytes of overhead.
+enough to fit two 700-byte messages plus 20 bytes of overhead.
 
 Host 1 (subscriber):
 ````
@@ -727,7 +727,7 @@ messages, the application message rate is 940K messages/sec.
 
 #### Test 8: Load Balance, Application Batching
 
-Three sources (single sending thread), batching 2 messages,
+Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load of application batched messages across
@@ -735,7 +735,7 @@ multiple Stores (each Store only sees one-third of the messages).
 
 NOTE: an application batching algorithm is *not* included in the source code.
 Instead, the message size was simply increased to 1420,
-enough to include two 700-byte messages plus 20 bytes of overhead.
+enough to fit two 700-byte messages plus 20 bytes of overhead.
 
 Host 1 (subscriber):
 ````
@@ -813,7 +813,7 @@ the Store's socket buffer can overflow and result in loss.
 The time duration of the warmup period is most important,
 not the number of messages.
 We find that after receiving the first message of a new source,
-the Store requires about 2 seconds to stablize and be ready for the
+the Store requires about 2 seconds to stabilize and be ready for the
 full throughput.
 The message rate during that warmup period should be no more than 10%
 of the maximum-sustainable message rate.
@@ -1095,16 +1095,16 @@ hasn't yet gotten caught up.
 
 ### Core Count and Network Interfaces
 
-The IT industry has been moving towards consolidation of servers to save costs.
+The IT industry has been moving towards the consolidation of servers to save costs.
 This involves moving to servers with high core counts -
-64 core servers are common, higher counts are readily available.
-However, due to the way that the cores must compete for main memory,
+64 core servers are common; higher counts are readily available.
+However, because the cores must compete for main memory,
 these high-count servers tend to have lower clock frequencies and slower
 memory accesses.
 The result is that while you can have very many threads running in parallel,
 the speed of a given thread can be lower than in a server with fewer cores.
-When you are trying to maximize throughput of a single thread,
-you will probably need a greater number of servers, each with fewer cores.
+When you are trying to maximize the throughput of a single thread,
+you may need more servers, each with fewer cores.
 Over-consolidation will lead to failure to achieve the highest throughput.
 
 The creation of virtual machines with small numbers of cores does not solve
@@ -1126,7 +1126,7 @@ When we send 700-byte messages in separate packets,
 we can get a send rate of 1.5M packets per second.
 However, servers with slower CPUs might not be able to keep up with this
 packet rate.
-Batching might be needed to reliably keep up.
+Batching might be needed to keep up reliably.
 
 Batching - the combining of many small application messages into a smaller
 number of network packets - has gotten a bad reputation among
@@ -1135,7 +1135,7 @@ This is because many batching algorithms include timers to flush out partial
 batches, which can introduce milliseconds of latency.
 For this reason, most low-latency applications flush every message.
 However, as the throughput requirement rises,
-there will come a point where it is not possible to achieve the desired
+it might not be possible to achieve the desired
 message rate without batching.
 
 Informatica recommends using an algorithm that we call "intelligent batching"
@@ -1154,7 +1154,7 @@ message with that future message.
 (The details depend on the nature of the application and the type of
 messaging layer send function being used.)
 This provides a self-adaptive algorithm - at low message rates,
-each message is immediately flushed without waiting.
+each message is flushed immediately without waiting.
 As the message rate increases, messages will become available more quickly
 than they can be sent individually.
 At the point where the send thread is one message behind,
@@ -1178,7 +1178,7 @@ latency at both low and high message rates.
 
 If you conclude that you cannot tolerate this batching,
 you can send messages in individual packets.
-You will not be able to reliably sustain the same rate as batching over a
+You will not be able to sustain the same rate reliably as batching over a
 long-running test, but if your sustainable rate meets your requirements,
 then we still recommend designing your message format to accommodate
 application batching in the future should you require it.
@@ -1188,7 +1188,7 @@ initial deployment.
 ### Burst VS. Sustain?
 
 When designing a high-throughput system,
-it is important to set goals for expected average message rate and
+it is important to set goals for the expected average message rate and
 expected maximum burst message rate.
 It is prudent to design the system to be capable of sustaining the
 maximum burst message rate over a significant period,
@@ -1202,7 +1202,7 @@ This leaves no headroom for future growth.
 Informatica assumes that the requirement to handle 1.5M msgs/sec is a
 case of ensuring that the system can sustain the expected burst rates,
 not that the planned production system will routinely maintain
-1.5M msgs/sec over long periods of time.
+1.5M msgs/sec over long periods.
 
 #### Loss Recovery at 1.64M Msgs/Sec
 
@@ -1217,13 +1217,13 @@ The results were expected: running at 1.64M msgs/sec with 712-byte
 messages leaves no bandwidth for loss recovery.
 Our testing has verified that a very low loss rate can be recovered
 successfully at a high sustained message rate.
-But any loss more than a few packets per second will result in
+But any loss of more than a few packets per second will result in
 significant unrecoverable loss for the lossy receiver.
 The receiver does not degrade gradually,
 it degrades suddenly and significantly ("falls off a cliff").
 
 However, 1.64M msgs/sec is only expected during bursts of traffic,
-followed by significantly lower message rate,
+followed by a significantly lower message rate,
 then LBT-RM can be easily tuned to recover from significant loss
 during those bursts.
 
@@ -1240,19 +1240,19 @@ Look again at one of the lines of output of the "um_perf_pub":
 actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
 ````
 
-Be aware that the 1420 bytes of user data is combined with overhead
-bytes from UM, from UDP, and from IP to produce a 1494-byte IP datagram.
+Be aware that the 1420 bytes of user data are combined with overhead
+bytes from UM, UDP, and IP to produce a 1494-byte IP datagram.
 This datagram is encapsulated in an ethernet frame that adds 30 more bytes.
 And the Ethernet standard requires an interpacket gap equal to 12 bytes.
 So each frame represents 8*(1494+30+12) = 12,288 bit times.
 The publisher sent 50,000,000 of those 12,288-bit frames in 60,716,897,922 ns.
 That works out to a line rate of 10.11 gigabits per second.
-But the actual network should only run at 10 gigabits per second.
+But the network should only run at 10 gigabits per second.
 How is it possible that our test ran faster than 10G?
 
 If we assume that Solarflare eliminates the interpacket gap,
 we get 10.04 gigabits per second.
-This leads us to suspect that Solarflare is not abiding by the 12 byte time
+This leads us to suspect that Solarflare is not abiding by the 12-byte time
 interpacket gap.
 According to Wikipedia:
 ````
@@ -1283,7 +1283,7 @@ However, for smaller messages that can achieve higher rates,
 it quickly became necessary.
 
 Given that busy looping is also recommended to minimize latency,
-we recommend its use in all critical data flows.
+we recommend its use in all high-performance data reception flows.
 
 ### Application Optimizations
 
@@ -1295,7 +1295,7 @@ require extremely high throughput.
 Recommended application optimizations:
 1. Use the XSP feature to map heavy data streams to specific threads,
 each of which is given exclusive use to a CPU core.
-No more CPU contention between critical threads.
+This removes CPU contention between critical threads.
 2. Critical processing threads should not be burdened with collecting and
 reporting logs and statistics.
 We recommend the use of the Automatic Monitoring feature.
@@ -1311,13 +1311,13 @@ and the enqueue operation should not use locks or dynamic memory
 
 The servers in Informatica's labs have had very few optimizations done to them.
 We want our systems to be as off-the-shelf as practical so that our testing
-is applicable to as many customer environments as possible.
+applies to as many customer environments as possible.
 
 A high-performance production system should have various optimizations done
 to minimize interruptions of critical application threads by the operating
 system.
 However,
-it is very difficult to give generic advice here that applies to everybody.
+it is hard to give generic advice here that applies to everybody.
 For example, for users of kernel network drivers,
 IRQs and interrupt coalescing are important considerations for
 latency/throughput tradeoffs.
@@ -1335,7 +1335,7 @@ https://access.redhat.com/articles/3720611  (Requires Red Hat subscription.)
 https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
 
 Note that even without these optimizations,
-our test was able to send and receive at full line rate.
+our test could send and receive at full line rate.
 So the above optimizations are recommended to provide additional headroom.
 
 ## INFORMATICA TEST HARDWARE
