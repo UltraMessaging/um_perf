@@ -1,6 +1,6 @@
 # um_perf - test programs to measure the performance of Ultra Messaging.
 
-Tools for measuring performance of Ultra Messaging (UM) persistence
+Tools for measuring the performance of Ultra Messaging (UM) persistence
 and streaming.
 
 - [um_perf - test programs to measure the performance of Ultra Messaging.](#um_perf---test-programs-to-measure-the-performance-of-ultra-messaging)
@@ -93,7 +93,7 @@ maximum-sustainable message rate for streaming and persistent sources.
 The primary motivation for these tools is to measure persistence.
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
-but not enough to run a representative test of Persistence.
+but not enough to run a representative test of persistence.
 That requires five fast hosts in total, three with fast disks.
 But the UM lab only has one host with a fast disk.
 
@@ -107,7 +107,7 @@ Not persistence, but provides a baseline rate.
 This characterizes a single disk-based store's performance (throughput).
 3. Single source, single RPP-based Store, single receiver.
 This allows us to compare SPP to RPP (see [RPP Vs. SPP](#rpp-vs-spp)).
-For the hardware we used, SPP is 35% slower than RPP.
+For the hardware we used, RPP is a little bit faster than SPP.
 4. Single source, three RPP-based Stores in quorum/consensus, single receiver.
 This allows us to measure the impact of a 3-Store Q/C group compared to
 a single-store Q/C group.
@@ -1109,34 +1109,33 @@ hasn't yet gotten caught up.
 ### RPP Vs. SPP
 
 There are two forms of persistence that UM supports:
-* SPP - Source-Paced Persitence.
+* SPP - Source-Paced Persistence.
 * RPP - Receiver-Paced Persistence.
 
-These forms differ in many ways, most of which are not relavant to this
+These forms differ in many ways, most of which are not relevant to this
 report.
 Of particular interest when measuring performance is the way that the
 disk is used.
 
 With SPP, every message sent by the source is recorded to disk.
 
-With RPP, messages are normally not written to disk.
+With RPP, messages are not normally written to disk.
 Instead, messages are deleted from the Store after the receiver(s) acknowledge
 the messages, typically without being written to disk.
 See [RPP: Receiver-Paced Persistence](https://ultramessaging.github.io/currdoc/doc/UME/operationalview.html#receiverpacedpersistenceoperations)
 for full details.
 
-Most users of persistence configure for SPP,
+Most persistence users configure for SPP,
 so measuring SPP performance is the primary goal of this report.
 However, SPP's performance is very dependent on a host's disk speed.
 During engineering testing, it is rare for a test lab to have multiple
 systems with fast disks.
 
 By testing with RPP, you can get a good idea of the Store's performance
-on a given host, even of that host does not have a high-speed disk.
+on a given host, even if that host does not have a high-speed disk.
 
-In general, RPP will out-perform SPP on a fast disk,
+RPP will typically outperform SPP on a fast disk,
 so performance estimates need to be adjusted accordingly.
-For the hardware we used, SPP is 35% slower than RPP.
 
 ### Core Count and Network Interfaces
 
@@ -1149,7 +1148,7 @@ memory accesses.
 The result is that while you can have very many threads running in parallel,
 the speed of a given thread can be lower than in a host with fewer cores.
 When you are trying to maximize the throughput of a single thread,
-you may need more hosts with with fewer cores each.
+you may need more hosts with fewer cores each.
 Over-consolidation will lead to failure to achieve the highest throughput.
 
 The creation of virtual machines with small numbers of cores does not solve
@@ -1166,7 +1165,7 @@ blade(s).
 This can result in high packet loss, especially for multicast traffic.
 
 Finally, there are specialized network interface cards from vendors
-like Xylinx (formerly Solarflare) and Cisco (formerly Exablaze)
+like Xilinx (formerly Solarflare) and Cisco (formerly Exablaze)
 that support "kernel-bypass" drivers.
 This technology is necessary to achieve the very high performance
 demonstrated in this report.
@@ -1174,7 +1173,7 @@ demonstrated in this report.
 Ultra Messaging is designed to get the highest messaging performance
 possible from any given hardware platform.
 However, to achieve the highest possible performance,
-harware must be chosen with attention to these issues.
+hardware must be chosen with attention to these issues.
 
 ### Intelligent Batching
 
