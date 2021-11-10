@@ -178,14 +178,14 @@ Here are the results from the full test suite:
 
 Test | Message Rate | Summary
 ---- | ------------ | ------------
-1 | 1.5M | Streaming (no Stores)
+1 | 1.4M | Streaming (no Stores)
 2 | 550K | 1 SPP Store (disk-based)
 3 | 860K | 1 RPP Store
 4 | 830K | 3 RPP Stores (Q/C)
 5 | 1.07M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 6 | 1.4M | 3 streaming sources (no Stores)
-7 | 940K | 1 SPP Store (disk-based), application batching
-8 | 1.64M | 3 sources, load balanced to 3 RPP Stores (not Q/C), application batching
+7 | 940K | application batching, 1 SPP Store (disk-based)
+8 | 1.64M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
 
@@ -448,10 +448,10 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts, potentially minus 1 (due to head loss).
-I.e., in this test, it might be 50100000 or 50099999.
+I.e., in this test, it might be 50000015 or 50000014.
 
 Host 2 (publisher):
 ````
@@ -459,7 +459,7 @@ taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=32915563782, result_rate=1519038.237691, global_max_tight_sends=49559254, max_flight_size=51000000
+actual_sends=50000000, duration_ns=35443874551, result_rate=1410680.988842, global_max_tight_sends=49583941, max_flight_size=50000014
 ````
 Since the requested rate is 999M msgs/sec, which is far above what can be done,
 the publisher sends most of its messages in a tight loop as fast as it can,
@@ -476,7 +476,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -495,11 +495,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 750000 -t topic1 -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1 -w 15,5 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=69444447917, result_rate=719999.963997, global_max_tight_sends=205, max_flight_size=51549
+actual_sends=50000000, duration_ns=92592592202, result_rate=540000.002278, global_max_tight_sends=110, max_flight_size=18954
 ````
 
 #### Test 3: Single RPP Store
@@ -513,7 +513,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -532,11 +532,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 860000 -t topic1 -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1 -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=58139535910, result_rate=859999.984819, global_max_tight_sends=2762, max_flight_size=96694
+actual_sends=50000000, duration_ns=92592592666, result_rate=539999.999572, global_max_tight_sends=75, max_flight_size=61697
 ````
 
 #### Test 4: Quorum/Consensus
@@ -550,7 +550,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -595,11 +595,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 830000 -t topic1abc -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1abc -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=60241625045, result_rate=829990.890230, global_max_tight_sends=1347, max_flight_size=98451
+actual_sends=50000000, duration_ns=90909090578, result_rate=550000.002003, global_max_tight_sends=21, max_flight_size=60415
 ````
 
 #### Test 5: Load Balance
@@ -616,7 +616,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -661,11 +661,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=46499766856, result_rate=1075274.208467, global_max_tight_sends=48730678, max_flight_size=109702
+actual_sends=50000000, duration_ns=48801274008, result_rate=1024563.415943, global_max_tight_sends=49109540, max_flight_size=104620
 ````
 
 #### Test 6: Three-Source Streaming
@@ -679,17 +679,17 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 100000
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=35305822773, result_rate=1416196.991683, global_max_tight_sends=49507149, max_flight_size=50100000
+actual_sends=50000000, duration_ns=32010201629, result_rate=1562002.032337, global_max_tight_sends=49483772, max_flight_size=50000014
 ````
 
 #### Test 7: Single SPP Store, Application Batching
@@ -707,7 +707,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -726,11 +726,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 470000 -t topic1 -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 470000 -t topic1 -w 15,5 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=25000000, duration_ns=53191488653, result_rate=470000.006262, global_max_tight_sends=14, max_flight_size=14754
+actual_sends=25000000, duration_ns=53191489302, result_rate=470000.000528, global_max_tight_sends=88, max_flight_size=11052
 ````
 
 Given the send rate of 470K, and that each send contains two application
@@ -755,7 +755,7 @@ Host 1 (subscriber):
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
 ````
 When the publisher completes, ensure that the subscriber's "EOS" log ends with
-"num_rx_msgs=0, num_unrec_loss=0,".
+"num_rx_msgs=X, num_unrec_loss=0,".
 The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
 message counts.
 
@@ -800,7 +800,7 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
@@ -1326,7 +1326,7 @@ and subscribers of high-throughput data.
 The subscriber commands are run with:
 
 ````
-EF_POLL_USEC=-1 taskset -a 0x10 onload ...
+EF_POLL_USEC=-1 taskset 0x10 onload ...
 ````
 
 The "EF_POLL_USEC=-1" environment variable is a special Onload control
