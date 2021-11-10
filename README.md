@@ -1290,7 +1290,8 @@ and verify that the LBT-RM algorithms properly recover the loss.
 
 ### Exceeding Line Rate?
 
-Look again at one of the lines of output of the "um_perf_pub":
+Look again at [test 8 results](#test-8-load-balance-application-batching).
+Here's the output of "um_perf_pub":
 
 ````
 actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
@@ -1306,17 +1307,16 @@ That works out to a line rate of 10.11 gigabits per second.
 But the network should only run at 10 gigabits per second.
 How is it possible that our test ran faster than 10G?
 
-If we assume that Solarflare eliminates the interpacket gap,
+If we speculate that Solarflare eliminates the interpacket gap,
 we get 10.04 gigabits per second.
-This leads us to suspect that Solarflare is not abiding by the 12-byte time
-interpacket gap.
-According to Wikipedia:
+Solarflare may not abide by the 12-byte-time interpacket gap.
+According to
+[Wikipedia](https://en.wikipedia.org/wiki/Interpacket_gap#Ethernet):
 ````
 Some manufacturers design adapters with a smaller interpacket gap for
-slightly higher data transfer rates.
-That can lead to data loss when mixed with standard adaptors.
+slightly higher data transfer rates. That can lead to data loss when
+mixed with standard adaptors.
 ````
-- https://en.wikipedia.org/wiki/Interpacket_gap#Ethernet
 
 Informatica recommends using the same vendor's NICs for all receivers
 of high-throughput data streams.
