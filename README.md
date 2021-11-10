@@ -1,5 +1,8 @@
 # um_perf - test programs to measure the performance of Ultra Messaging.
 
+Tools for measuring performance of Ultra Messaging (UM) persistence
+and streaming.
+
 - [um_perf - test programs to measure the performance of Ultra Messaging.](#um_perf---test-programs-to-measure-the-performance-of-ultra-messaging)
   - [COPYRIGHT AND LICENSE](#copyright-and-license)
   - [REPOSITORY](#repository)
@@ -87,6 +90,7 @@ See https://github.com/UltraMessaging/um_perf for code and documentation.
 
 Informatica used the tools in this repository to measure the
 maximum-sustainable message rate for streaming and persistent sources.
+The primary motivation for these tools is to measure persistence.
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
 but not enough to run a representative test of Persistence.
@@ -96,8 +100,9 @@ But the UM lab only has one host with a fast disk.
 So we devised a series of tests to estimate the performance of a
 fully-provisioned production datacenter using a minimally-provisioned lab.
 
-Here are the persistence tests:
+Here are the tests:
 1. Single source, single receiver, streaming (no Store).
+Not persistence, but provides a baseline rate.
 2. Single source, single SPP-based Store (disk-based), single receiver.
 This characterizes a single disk-based store's performance (throughput).
 3. Single source, single RPP-based Store, single receiver.
@@ -146,8 +151,10 @@ cheaper spinning disk write speeds.
 Informatica strongly recommends selecting SSDs for persistent Stores that
 are "optimized for write".
 
-All tests were performed with 700-byte messages that were flushed
-(no batching).
+All tests were performed with 700-byte application messages.
+Most tests flushed every message, but the last two included
+application batching.
+The tests also used
 UM "Smart Sources" and Xilinx (formerly Solarflare) 10-gig NICs with
 Onload kernel-bypass drivers were used on all hosts.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
@@ -155,7 +162,10 @@ In the results below, "K" represents 1,000; "M" represents 1,000,000;
 
 ## RESULTS
 
-Using load-balanced Stores, UM can easily sustain 1M messages/sec.
+Using load-balanced Stores and application batching,
+UM persistence can easily sustain 1.5M messages/sec.
+
+Without application batching, 1M messages/sec was possible.
 
 Load-balanced means that the sending thread sends messages to three
 different topics.
