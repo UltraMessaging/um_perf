@@ -609,6 +609,8 @@ three receivers (single receiver thread).
 This demonstrates balancing the load across multiple Stores
 (each Store only sees one-third of the messages).
 
+Note that inter-topic message ordering is not guaranteed.
+
 Host 1 (subscriber):
 ````
 EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
@@ -741,6 +743,8 @@ three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load of application batched messages across
 multiple Stores (each Store only sees one-third of the messages).
+
+Note that inter-topic message ordering is not guaranteed.
 
 NOTE: an application batching algorithm is *not* included in the source code.
 Instead, the message size was simply increased to 1420,
