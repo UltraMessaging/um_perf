@@ -179,13 +179,13 @@ Here are the results from the full test suite:
 Test | Message Rate | Summary
 ---- | ------------ | ------------
 1 | 1.4M | Streaming (no Stores)
-2 | 540K | 1 SPP Store (disk-based)
-3 | 540K | 1 RPP Store
-4 | 550K | 3 RPP Stores (Q/C)
+2 | 550K | 1 SPP Store (disk-based)
+3 | 760K | 1 RPP Store
+4 | 740K | 3 RPP Stores (Q/C)
 5 | 1M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 6 | 1.5M | 3 streaming sources (no Stores)
 7 | 940K | application batching, 1 SPP Store (disk-based)
-8 | 1.6M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
+8 | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
 
@@ -459,9 +459,9 @@ taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=35443874551, result_rate=1410680.988842, global_max_tight_sends=49583941, max_flight_size=50000014
+actual_sends=50000000, duration_ns=33471056772, result_rate=1493827.946354, global_max_tight_sends=49648605, max_flight_size=50000014
 ````
-Since the requested rate is 999M msgs/sec, which is far above what can be done,
+Since the requested rate is 999M msgs/sec, which is far greater than line rate,
 the publisher sends most of its messages in a tight loop as fast as it can,
 with a resulting rate of 1.519M msgs/sec.
 
@@ -482,7 +482,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -495,11 +495,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1 -w 15,5 -p s
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 550000 -t topic1 -w 15,5 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=92592592202, result_rate=540000.002278, global_max_tight_sends=110, max_flight_size=18954
+actual_sends=50000000, duration_ns=90909090526, result_rate=550000.002318, global_max_tight_sends=33, max_flight_size=29535
 ````
 
 #### Test 3: Single RPP Store
@@ -519,7 +519,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -532,11 +532,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1 -w 15,5 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 760000 -t topic1 -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=92592592666, result_rate=539999.999572, global_max_tight_sends=75, max_flight_size=61697
+actual_sends=50000000, duration_ns=65789473262, result_rate=760000.004877, global_max_tight_sends=2241, max_flight_size=81726
 ````
 
 #### Test 4: Quorum/Consensus
@@ -556,7 +556,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -569,7 +569,7 @@ Repeat the test.
 
 Host S2 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1b.xml | tee store1b.log
+umestored -a "3,1,3,3,5" store_1b.xml | tee store1b.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -582,7 +582,7 @@ Repeat the test.
 
 Host S3 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1c.xml | tee store1c.log
+umestored -a "3,1,3,3,5" store_1c.xml | tee store1c.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -595,11 +595,11 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 540000 -t topic1abc -w 15,5 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 740000 -t topic1abc -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=90909090578, result_rate=550000.002003, global_max_tight_sends=21, max_flight_size=60415
+actual_sends=50000000, duration_ns=67567629876, result_rate=739999.317599, global_max_tight_sends=1094, max_flight_size=83218
 ````
 
 #### Test 5: Load Balance
@@ -622,7 +622,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -635,7 +635,7 @@ Repeat the test.
 
 Host S2 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_2a.xml | tee store2a.log
+umestored -a "3,1,3,3,5" store_2a.xml | tee store2a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -648,7 +648,7 @@ Repeat the test.
 
 Host S3 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_3a.xml | tee store3a.log
+umestored -a "3,1,3,3,5" store_3a.xml | tee store3a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -665,7 +665,7 @@ taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 700 -n 50000000 -r 999999999 
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=48801274008, result_rate=1024563.415943, global_max_tight_sends=49109540, max_flight_size=104620
+actual_sends=50000000, duration_ns=48010773767, result_rate=1041432.913426, global_max_tight_sends=49104891, max_flight_size=105913
 ````
 
 #### Test 6: Three-Source Streaming
@@ -713,7 +713,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -726,15 +726,15 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 470000 -t topic1 -w 15,5 -p s
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 25000000 -r 400000 -t topic1 -w 15,5 -p s
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=25000000, duration_ns=53191489302, result_rate=470000.000528, global_max_tight_sends=88, max_flight_size=11052
+actual_sends=25000000, duration_ns=62499998820, result_rate=400000.007552, global_max_tight_sends=15, max_flight_size=14359
 ````
 
-Given the send rate of 470K, and that each send contains two application
-messages, the application message rate is 940K messages/sec.
+Given the send rate of 400K, and that each send contains two application
+messages, the application message rate is 800K messages/sec.
 
 #### Test 8: Load Balance, Application Batching
 
@@ -761,7 +761,7 @@ message counts.
 
 Host S1 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_1a.xml | tee store1a.log
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -774,7 +774,7 @@ Repeat the test.
 
 Host S2 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_2a.xml | tee store2a.log
+umestored -a "3,1,3,3,5" store_2a.xml | tee store2a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -787,7 +787,7 @@ Repeat the test.
 
 Host S3 (Store):
 ````
-onload umestored -a "4,2,4,4,4" store_3a.xml | tee store3a.log
+umestored -a "3,1,3,3,5" store_3a.xml | tee store3a.log
 ````
 When the publisher completes, ensure that the Store does NOT display any
 "unrecoverable" loss log messages.
@@ -800,15 +800,15 @@ Repeat the test.
 
 Host 2 (publisher):
 ````
-taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 50000000 -r 999999999 -t topic1,topic2,topic3 -w 15,5 -p r
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 25000000 -r 750000 -t topic1,topic2,topic3 -w 15,5 -p r
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
+actual_sends=25000000, duration_ns=33333332926, result_rate=750000.009165, global_max_tight_sends=57, max_flight_size=74917
 ````
 
-Given the send rate of 823K, and that each send contains two application
-messages, the application message rate is 1.64M messages/sec.
+Given the send rate of 750K, and that each send contains two application
+messages, the application message rate is 1.5M messages/sec.
 
 ## WARMUP
 
