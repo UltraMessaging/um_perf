@@ -184,7 +184,7 @@ Test | Message Rate | Summary
 4 | 740K | 3 RPP Stores (Q/C)
 5 | 1M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 6 | 1.5M | 3 streaming sources (no Stores)
-7 | 940K | application batching, 1 SPP Store (disk-based)
+7 | 800K | application batching, 1 SPP Store (disk-based)
 8 | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
