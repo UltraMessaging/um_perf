@@ -31,18 +31,20 @@
 #include "lbm/lbm.h"
 #include "um_perf.h"
 
-/* Command-line options and their defaults */
+/* Command-line options and their defaults. String defaults are set
+ * in "get_my_opts()". */
 static int o_affinity_cpu = 0;
-static char *o_config = NULL;  /* Default set in "get_my_opts()". */
+static char *o_config = NULL;
+static int o_exit_on_eos = 0;  /* -E */
 static char *o_persist = NULL;
 static int o_spin_cnt = 0;
-static char *o_topics = NULL;  /* Default set in "get_my_opts()". */
-static char *o_xml_config = NULL;  /* Default set in "get_my_opts()". */
+static char *o_topics = NULL;
+static char *o_xml_config = NULL;
 
 /* Globals. The code depends on the loader initializing them to all zeros. */
 char *app_name;
 
-char usage_str[] = "Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-s spin_cnt] [-t topic] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-E] [-s spin_cnt] [-t topic] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -56,11 +58,13 @@ void help() {
       "  -h : print help\n"
       "  -a affinity_cpu : CPU number (0..N-1) for receive thread [%d]\n"
       "  -c config : configuration file; can be repeated [%s]\n"
+      "  -E : exit on EOS [%d]\n"
       "  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]\n"
       "  -s spin_cnt : empty loop inside receiver callback [%d]\n"
       "  -t topics : comma-separated topic strings [%s]\n"
       "  -x xml_config : configuration file [%s]\n"
-      , o_affinity_cpu, o_config, o_persist, o_spin_cnt , o_topics, o_xml_config
+      , o_affinity_cpu, o_config, o_exit_on_eos, o_persist, o_spin_cnt
+      , o_topics, o_xml_config
   );
   exit(0);
 }
@@ -76,7 +80,7 @@ void get_my_opts(int argc, char **argv)
   o_topics = strdup("");
   o_xml_config = strdup("");
 
-  while ((opt = getopt(argc, argv, "ha:c:p:s:t:x:")) != EOF) {
+  while ((opt = getopt(argc, argv, "ha:c:Ep:s:t:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
       case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
@@ -85,6 +89,7 @@ void get_my_opts(int argc, char **argv)
                 o_config = strdup(optarg);
                 E(lbm_config(o_config));  /* Allow multiple calls. */
                 break;
+      case 'E': o_exit_on_eos = 1; break;
       case 'p': free(o_persist); o_persist = strdup(optarg); break;
       case 's': SAFE_ATOI(optarg, o_spin_cnt); break;
       case 't': free(o_topics); o_topics = strdup(optarg); break;
@@ -160,6 +165,10 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
           msg->topic_name, msg->source, num_rcv_msgs, num_rx_msgs, num_unrec_loss);
     }
     fflush(stdout);
+
+    if (o_exit_on_eos) {
+      exit(0);
+    }
     break;
 
   case LBM_MSG_UME_REGISTRATION_ERROR:
@@ -224,8 +233,8 @@ int main(int argc, char **argv)
 
   get_my_opts(argc, argv);
 
-  printf("o_affinity_cpu=%d, o_config=%s, o_persist='%s', o_spin_cnt=%d, o_topics='%s', o_xml_config=%s, \n",
-      o_affinity_cpu, o_config, o_persist, o_spin_cnt, o_topics, o_xml_config);
+  printf("o_affinity_cpu=%d, o_config=%s, o_exit_on_eos=%d, o_persist='%s', o_spin_cnt=%d, o_topics='%s', o_xml_config=%s, \n",
+      o_affinity_cpu, o_config, o_exit_on_eos, o_persist, o_spin_cnt, o_topics, o_xml_config);
 
   /* Create UM context. */
   E(lbm_context_create(&ctx, NULL, NULL, NULL));
