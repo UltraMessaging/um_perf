@@ -36,13 +36,14 @@
 static int o_affinity_cpu = 1;
 static char *o_histogram = NULL;
 static int o_jitter_loops = 10000000;
+static int o_malloc_size = 0;
 static int o_spin_cnt = 0;
 
 /* Parameters parsed out from command-line options. */
 int histo_num_buckets;
 int histo_ns_per_bucket;
 
-char usage_str[] = "Usage: um_perf_jitter [-h] [-a affinity_cpu] [-H histo_num_buckets,histo_ns_per_bucket] [-j jitter_loops] [-s spin_cnt]";
+char usage_str[] = "Usage: um_perf_jitter [-h] [-a affinity_cpu] [-H histo_num_buckets,histo_ns_per_bucket] [-j jitter_loops] [-m malloc_size] [-s spin_cnt]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -57,8 +58,9 @@ void help() {
       "  -a affinity_cpu : bitmap for CPU affinity for send thread [%d]\n"
       "  -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]\n"
       "  -j jitter_loops : jitter measurement loops [%d]\n"
+      "  -m malloc_size : do mallocs (size) [%d]\n"
       "  -s spin_cnt : spin loops inside one jitter loop [%d]\n"
-      , o_affinity_cpu, o_histogram, o_jitter_loops, o_spin_cnt
+      , o_affinity_cpu, o_histogram, o_jitter_loops, o_malloc_size, o_spin_cnt
   );
   exit(0);
 }
@@ -71,12 +73,13 @@ void get_my_opts(int argc, char **argv)
   /* Set defaults for string options. */
   o_histogram = strdup("0,0");
 
-  while ((opt = getopt(argc, argv, "ha:H:j:s:")) != EOF) {
+  while ((opt = getopt(argc, argv, "ha:H:j:m:s:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
       case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
       case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
       case 'j': SAFE_ATOI(optarg, o_jitter_loops); break;
+      case 'm': SAFE_ATOI(optarg, o_malloc_size); break;
       case 's': SAFE_ATOI(optarg, o_spin_cnt); break;
       default: usage(NULL);
     }  /* switch opt */
@@ -183,13 +186,25 @@ void jitter_loop()
   uint64_t ts_max_ns = 0;
   struct timespec ts1;
   struct timespec ts2;
-  int i, spinner;
+#define NUM_MALLOCS 10000
+  char *mallocs[NUM_MALLOCS];
+  int i;
 
   int do_histogram = 0;
   if (histo_buckets != NULL) {
       do_histogram = 1;
   }
 
+  int malloc_size = o_malloc_size;  /* Local var for speed. */
+  int spin_cnt = o_spin_cnt;  /* Local var for speed. */
+
+  if (malloc_size > 0) {
+    for (i = 0; i < NUM_MALLOCS; i++) {
+      mallocs[i] = NULL;
+    }
+  }
+
+  /* Warm up the cache for clock_gettime(). */
   clock_gettime(CLOCK_MONOTONIC, &ts1);
   clock_gettime(CLOCK_MONOTONIC, &ts2);
   clock_gettime(CLOCK_MONOTONIC, &ts1);
@@ -200,9 +215,19 @@ void jitter_loop()
 
     /* Two timestamps in a row measures the duration of the timestamp. */
     clock_gettime(CLOCK_MONOTONIC, &ts1);
-    for (spinner = 0; spinner < o_spin_cnt; spinner++) {
-      global_cnt++;
+
+    if (malloc_size > 0) {
+      if (mallocs[i % NUM_MALLOCS] != NULL) {
+        free(mallocs[i % NUM_MALLOCS]);
+      }
+      mallocs[i % NUM_MALLOCS] = malloc(o_malloc_size);
+      *mallocs[i % NUM_MALLOCS] = 1;
     }
+    if (spin_cnt > 0) {
+      for (global_cnt = 0; global_cnt < spin_cnt; global_cnt++) {
+      }
+    }
+
     clock_gettime(CLOCK_MONOTONIC, &ts2);
 
     DIFF_TS(ts_this_ns, ts2, ts1);
@@ -232,16 +257,16 @@ int main(int argc, char **argv)
     histo_create();
   }
 
-  /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_cpu=%d, o_jitter_loops=%d, o_spin_cnt=%d, \n",
-      o_affinity_cpu, o_jitter_loops, o_spin_cnt);
-
   CPU_ZERO(&cpuset);
   CPU_SET(o_affinity_cpu, &cpuset);
   errno = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   if (errno != 0) { PERRNO("pthread_setaffinity_np"); }
 
   jitter_loop();
+
+  /* Leave "comma space" at end of line to make parsing output easier. */
+  printf("o_affinity_cpu=%d, o_histogram=%s, o_jitter_loops=%d, o_malloc_size=%d, o_spin_cnt=%d, \n",
+      o_affinity_cpu, o_histogram, o_jitter_loops, o_malloc_size, o_spin_cnt);
 
   exit(0);
 }  /* main */
