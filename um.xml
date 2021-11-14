@@ -28,7 +28,7 @@
         <option name="retransmit_retention_size_limit" default-value="71000000"/>
         <option name="ume_message_stability_timeout" default-value="0"/>
         <option name="ume_flight_size" default-value="100000"/>
-        <option name="ume_flight_size_bytes" default-value="70000000"/>
+        <option name="ume_flight_size_bytes" default-value="140000000"/>
       </options>
       <options type="receiver">
         <option name="delivery_control_maximum_burst_loss" default-value="100000000"/>
