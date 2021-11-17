@@ -782,11 +782,11 @@ taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 25000000 -r 720000 -t
 ````
 When the publisher completes, the output should be something like:
 ````
-actual_sends=25000000, duration_ns=62499998820, result_rate=400000.007552, global_max_tight_sends=15, max_flight_size=14359
+actual_sends=25000000, duration_ns=34722221743, result_rate=720000.009937, global_max_tight_sends=40, max_flight_size=80605
 ````
 
-Given the send rate of 400K, and that each send contains two application
-messages, the application message rate is 800K messages/sec.
+Given the send rate of 720K, and that each send contains two application
+messages, the application message rate is 1.44M messages/sec.
 
 #### Test 9: Load Balance, Application Batching
 
