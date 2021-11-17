@@ -24,7 +24,8 @@ and streaming.
       - [Test 5: Load Balance](#test-5-load-balance)
       - [Test 6: Three-Source Streaming](#test-6-three-source-streaming)
       - [Test 7: Single SPP Store, Application Batching](#test-7-single-spp-store-application-batching)
-      - [Test 8: Load Balance, Application Batching](#test-8-load-balance-application-batching)
+      - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
+      - [Test 9: Load Balance, Application Batching](#test-9-load-balance-application-batching)
   - [WARMUP](#warmup)
   - [TOOL USAGE NOTES](#tool-usage-notes)
     - [um_perf_pub](#um_perf_pub)
@@ -121,7 +122,11 @@ fast as a single streaming source.
 7. Single source, batching two messages,
 single SPP-based Store (disk-based), single receiver.
 This characterizes application batching two messages together per send.
-8. Three sources (single sending thread), batching two messages,
+8. Single source, batching two messages,
+single RPP-based Store (disk-based), single receiver.
+This characterizes application batching two messages together per send
+for an RPP Store.
+9. Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load of application batched messages across
@@ -162,10 +167,11 @@ In the results below, "K" represents 1,000; "M" represents 1,000,000;
 
 ## RESULTS
 
-Using load-balanced Stores and application batching,
+Using load-balanced SPP Stores and application batching,
 UM persistence can easily sustain 1.5M messages/sec.
 
-Without application batching, 1M messages/sec was possible.
+Using a single RPP Store and application batching,
+UM persistence can sustain 1.4M messages/sec.
 
 Load-balanced means that the sending thread sends messages to three
 different topics.
@@ -185,7 +191,8 @@ Test | Message Rate | Summary
 [5](#test-5-load-balance) | 1M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 [6](#test-6-three-source-streaming) | 1.5M | 3 streaming sources (no Stores)
 [7](#test-7-single-spp-store-application-batching) | 800K | application batching, 1 SPP Store (disk-based)
-[8](#test-8-load-balance-application-batching) | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
+[8](#test-8-single-rpp-store-application-batching) | 1.44M | application batching, 1 RPP Store (disk-based)
+[9](#test-9-load-balance-application-batching) | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
 
@@ -736,7 +743,52 @@ actual_sends=25000000, duration_ns=62499998820, result_rate=400000.007552, globa
 Given the send rate of 400K, and that each send contains two application
 messages, the application message rate is 800K messages/sec.
 
-#### Test 8: Load Balance, Application Batching
+#### Test 8: Single RPP Store, Application Batching
+
+Single source, batching two messages,
+single RPP-based Store (disk-based), single receiver.
+This characterizes application batching two messages together per send
+to an RPP Store.
+
+NOTE: an application batching algorithm is *not* included in the source code.
+Instead, the message size was simply increased to 1420,
+enough to fit two 700-byte messages plus 20 bytes of overhead.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=X, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host 2 (publisher):
+````
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 25000000 -r 720000 -t topic1 -w 15,5 -p r
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=25000000, duration_ns=62499998820, result_rate=400000.007552, global_max_tight_sends=15, max_flight_size=14359
+````
+
+Given the send rate of 400K, and that each send contains two application
+messages, the application message rate is 800K messages/sec.
+
+#### Test 9: Load Balance, Application Batching
 
 Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),
@@ -1289,7 +1341,7 @@ and verify that the LBT-RM algorithms properly recover the loss.
 
 ### Exceeding Line Rate?
 
-Look again at [test 8 results](#test-8-load-balance-application-batching).
+Look again at [test 9 results](#test-9-load-balance-application-batching).
 Here's the output of "um_perf_pub":
 
 ````
