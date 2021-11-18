@@ -25,7 +25,9 @@ and streaming.
       - [Test 6: Three-Source Streaming](#test-6-three-source-streaming)
       - [Test 7: Single SPP Store, Application Batching](#test-7-single-spp-store-application-batching)
       - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
-      - [Test 9: Load Balance, Application Batching](#test-9-load-balance-application-batching)
+      - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
+      - [Test 9: RPP Quorum/Consensus, Application Batching](#test-9-rpp-quorumconsensus-application-batching)
+      - [Test 10: Load Balance, Application Batching](#test-10-load-balance-application-batching)
   - [WARMUP](#warmup)
   - [TOOL USAGE NOTES](#tool-usage-notes)
     - [um_perf_pub](#um_perf_pub)
@@ -126,7 +128,11 @@ This characterizes application batching two messages together per send.
 single RPP-based Store (disk-based), single receiver.
 This characterizes application batching two messages together per send
 for an RPP Store.
-9. Three sources (single sending thread), batching two messages,
+9. Single source, batching two messages,
+three RPP-based Stores, single receiver.
+This characterizes application batching two messages together per send
+for three RPP Q/C Stores.
+10. Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),
 three receivers (single receiver thread).
 This demonstrates balancing the load of application batched messages across
@@ -191,8 +197,9 @@ Test | Message Rate | Summary
 [5](#test-5-load-balance) | 1M | 3 sources, load balanced to 3 RPP Stores (not Q/C)
 [6](#test-6-three-source-streaming) | 1.5M | 3 streaming sources (no Stores)
 [7](#test-7-single-spp-store-application-batching) | 800K | application batching, 1 SPP Store (disk-based)
-[8](#test-8-single-rpp-store-application-batching) | 1.44M | application batching, 1 RPP Store (disk-based)
-[9](#test-9-load-balance-application-batching) | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
+[8](#test-8-single-rpp-store-application-batching) | 1.44M | application batching, 1 RPP Store
+[9](#test-9-rpp-quorumconsensus-application-batching) | 1.44M | application batching, 3 RPP Stores (Q/C)
+[10](#test-10-load-balance-application-batching) | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
 
@@ -788,7 +795,70 @@ actual_sends=25000000, duration_ns=34722221743, result_rate=720000.009937, globa
 Given the send rate of 720K, and that each send contains two application
 messages, the application message rate is 1.44M messages/sec.
 
-#### Test 9: Load Balance, Application Batching
+#### Test 9: RPP Quorum/Consensus, Application Batching
+
+Single source, three RPP-based Stores in quorum/consensus, single receiver.
+This allows us to measure the impact of a 3-Store Q/C group compared to
+a single-store Q/C group.
+
+Host 1 (subscriber):
+````
+EF_POLL_USEC=-1 taskset 0x01 onload ./um_perf_sub -x um.xml -a 2 -t "topic1,topic2,topic3,topic1abc" -p r
+````
+When the publisher completes, ensure that the subscriber's "EOS" log ends with
+"num_rx_msgs=X, num_unrec_loss=0,".
+The "num_rcv_msgs" value should be the sum of the publisher's "-n" and "-w"
+message counts.
+
+Host S1 (Store):
+````
+umestored -a "4,2,4,4,6" store_1a.xml | tee store1a.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host S2 (Store):
+````
+umestored -a "3,1,3,3,5" store_1b.xml | tee store1b.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host S3 (Store):
+````
+umestored -a "3,1,3,3,5" store_1c.xml | tee store1c.log
+````
+When the publisher completes, ensure that the Store does NOT display any
+"unrecoverable" loss log messages.
+Before running another test, wait for the Store to delete the topic (will log
+a message of the form "Store-5688-5285: store "..." topic "..." deleted").
+
+If this is the first test run after the Store's startup,
+there might be unrecoverable loss due to insufficient "warmup" of the Store.
+Repeat the test.
+
+Host 2 (publisher):
+````
+taskset 0x1 onload ./um_perf_pub -a 1 -x um.xml -m 1420 -n 25000000 -r 710000 -t topic1abc -w 15,5 -p r
+````
+When the publisher completes, the output should be something like:
+````
+actual_sends=25000000, duration_ns=35211267388, result_rate=710000.004388, global_max_tight_sends=227, max_flight_size=81350
+````
+
+#### Test 10: Load Balance, Application Batching
 
 Three sources (single sending thread), batching two messages,
 three RPP-based Stores (one per source),

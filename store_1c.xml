@@ -20,8 +20,8 @@
             <option type="store" name="repository-allow-ack-on-reception" value="1"/>
             <option type="store" name="repository-disk-write-delay" value="1500"/>
             <option type="store" name="repository-type" value="disk"/>
-            <option type="store" name="repository-size-threshold" value="71000000"/>
-            <option type="store" name="repository-size-limit" value="85000000"/>
+            <option type="store" name="repository-size-threshold" value="141000000"/>
+            <option type="store" name="repository-size-limit" value="165000000"/>
             <option type="store" name="repository-disk-file-size-limit" value="8589934592"/>
             <option type="store" name="stability-ack-minimum-number" value="64"/>
           </ume-attributes>
@@ -33,8 +33,8 @@
             <option type="store" name="repository-allow-ack-on-reception" value="1"/>
             <option type="store" name="repository-disk-write-delay" value="1500"/>
             <option type="store" name="repository-type" value="disk"/>
-            <option type="store" name="repository-size-threshold" value="71000000"/>
-            <option type="store" name="repository-size-limit" value="85000000"/>
+            <option type="store" name="repository-size-threshold" value="141000000"/>
+            <option type="store" name="repository-size-limit" value="165000000"/>
             <option type="store" name="repository-disk-file-size-limit" value="8589934592"/>
             <option type="store" name="stability-ack-minimum-number" value="64"/>
           </ume-attributes>
