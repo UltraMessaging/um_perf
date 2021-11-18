@@ -25,7 +25,6 @@ and streaming.
       - [Test 6: Three-Source Streaming](#test-6-three-source-streaming)
       - [Test 7: Single SPP Store, Application Batching](#test-7-single-spp-store-application-batching)
       - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
-      - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
       - [Test 9: RPP Quorum/Consensus, Application Batching](#test-9-rpp-quorumconsensus-application-batching)
       - [Test 10: Load Balance, Application Batching](#test-10-load-balance-application-batching)
   - [WARMUP](#warmup)
@@ -198,7 +197,7 @@ Test | Message Rate | Summary
 [6](#test-6-three-source-streaming) | 1.5M | 3 streaming sources (no Stores)
 [7](#test-7-single-spp-store-application-batching) | 800K | application batching, 1 SPP Store (disk-based)
 [8](#test-8-single-rpp-store-application-batching) | 1.44M | application batching, 1 RPP Store
-[9](#test-9-rpp-quorumconsensus-application-batching) | 1.44M | application batching, 3 RPP Stores (Q/C)
+[9](#test-9-rpp-quorumconsensus-application-batching) | 1.42M | application batching, 3 RPP Stores (Q/C)
 [10](#test-10-load-balance-application-batching) | 1.5M | application batching, 3 sources, load balanced to 3 RPP Stores (not Q/C)
 
 ### Reproduction
