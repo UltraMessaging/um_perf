@@ -43,6 +43,7 @@ static char *o_xml_config = NULL;
 /* Globals. The code depends on the loader initializing them to all zeros. */
 char *app_name;
 
+
 char usage_str[] = "Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-E] [-p persist_mode] [-s spin_cnt] [-t topics] [-x xml_config]";
 
 void usage(char *msg) {
@@ -71,6 +72,7 @@ void help() {
 }
 
 
+/* Process command-line options. */
 void get_my_opts(int argc, char **argv)
 {
   int opt;  /* Loop variable for getopt(). */
@@ -99,6 +101,9 @@ void get_my_opts(int argc, char **argv)
     }  /* switch opt */
   }  /* while getopt */
 
+  /* Must supply certain required "options". */
+  ASSRT(strlen(o_topics) > 0);  /* o_topics is parsed in main(). */
+
   if (strlen(o_persist) == 0) {
     app_name = "um_perf";
   }
@@ -118,12 +123,13 @@ void get_my_opts(int argc, char **argv)
     E(lbm_config_xml_file(o_xml_config, app_name));
   }
 
-  if (optind != argc) { usage("Extra parameter(s)"); }
+  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 
 /* This "counter" is made global to force the optimizer to update it. */
 int global_counter;
+/* UM callback for receiver events, including received messages. */
 int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
 {
   static uint64_t num_rcv_msgs;
@@ -248,8 +254,8 @@ int main(int argc, char **argv)
 
   E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x6"));
 
+  /* Parse out the individual topics in o_topics and create receiver objects. */
   char *strtok_context;
-
   char *work_string = CPRT_STRDUP(o_topics);
   char *cur_topic = CPRT_STRTOK(work_string, ",", &strtok_context);
   while (cur_topic != NULL) {

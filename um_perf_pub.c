@@ -65,6 +65,7 @@ int registration_complete;
 int cur_flight_size;
 int max_flight_size;
 
+
 char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-p persist_mode] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
 
 void usage(char *msg) {
@@ -100,6 +101,7 @@ void help() {
 }
 
 
+/* Process command-line options. */
 void get_my_opts(int argc, char **argv)
 {
   int opt;  /* Loop variable for getopt(). */
@@ -109,7 +111,7 @@ void get_my_opts(int argc, char **argv)
   o_histogram = CPRT_STRDUP("0,0");
   o_persist = CPRT_STRDUP("");
   o_topics = CPRT_STRDUP("");
-  o_warmup = CPRT_STRDUP("15,5");
+  o_warmup = CPRT_STRDUP("0,0");
   o_xml_config = CPRT_STRDUP("");
 
   while ((opt = getopt(argc, argv, "ha:c:gH:l:L:m:n:p:r:t:w:x:")) != EOF) {
@@ -140,7 +142,7 @@ void get_my_opts(int argc, char **argv)
   ASSRT(o_rate > 0);
   ASSRT(o_num_msgs > 0);
   ASSRT(o_msg_len > 0);
-  ASSRT(strlen(o_topics) > 0);
+  ASSRT(strlen(o_topics) > 0);  /* o_topics is parsed in create_sources(). */
 
   char *strtok_context;
 
@@ -153,13 +155,11 @@ void get_my_opts(int argc, char **argv)
   char *hist_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
   ASSRT(hist_ns_per_bucket_str != NULL);
 
-  ASSRT(o_rate > 0);
-
-  ASSRT(o_rate > 0);
   CPRT_ATOI(hist_ns_per_bucket_str, hist_ns_per_bucket);
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
+  if (hist_num_buckets > 0) { ASSRT(hist_ns_per_bucket > 0); }
 
   if (strlen(o_persist) == 0) {
     app_name = "um_perf";
@@ -174,12 +174,6 @@ void get_my_opts(int argc, char **argv)
     usage("Error, -p value must be '', 'r', or 's'\n");
   }
 
-  if (strlen(o_xml_config) > 0) {
-    /* Unlike lbm_config(), you can't load more than one XML file.
-     * If user supplied -x more than once, only load last one. */
-    E(lbm_config_xml_file(o_xml_config, app_name));
-  }
-
   /* Parse the warmup option: "warmup_loops,warmup_rate". */
   work_str = CPRT_STRDUP(o_warmup);
   char *warmup_loops_str = CPRT_STRTOK(work_str, ",", &strtok_context);
@@ -192,11 +186,19 @@ void get_my_opts(int argc, char **argv)
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
+  if (warmup_loops > 0) { ASSRT(warmup_rate > 0); }
 
-  if (optind != argc) { usage("Extra parameter(s)"); }
+  if (strlen(o_xml_config) > 0) {
+    /* Unlike lbm_config(), you can't load more than one XML file.
+     * If user supplied -x more than once, only load last one. */
+    E(lbm_config_xml_file(o_xml_config, app_name));
+  }
+
+  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 
+/* Histogram. */
 int *hist_buckets = NULL;
 int hist_min_sample = 999999999;
 int hist_max_sample = 0;
@@ -213,6 +215,7 @@ void hist_init()
   hist_num_samples = 0;
   hist_sample_sum = 0;
 
+  /* Init histogram (also makes sure it is mapped to physical memory. */
   int i;
   for (i = 0; i < hist_num_buckets; i++) {
     hist_buckets[i] = 0;
@@ -255,23 +258,15 @@ void hist_print()
   for (i = 0; i < hist_num_buckets; i++) {
     printf("%d\n", hist_buckets[i]);
   }
-  printf("hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
-      hist_overflows, hist_min_sample, hist_max_sample);
+  printf("o_histogram=%s, hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
+      o_histogram, hist_overflows, hist_min_sample, hist_max_sample);
   uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
   printf("hist_num_samples=%d, average_sample=%d,\n",
       hist_num_samples, (int)average_sample);
 }  /* hist_print */
 
-void hist_test()
-{
-  hist_input(1);
-  hist_input(hist_num_buckets * hist_ns_per_bucket - 1);
-  hist_print();
-  hist_input(hist_num_buckets * hist_ns_per_bucket);
-  hist_print();
-}  /* hist_test */
 
-
+/* Process source event. */
 int handle_src_event(int event, void *extra_data, void *client_data)
 {
   switch (event) {
@@ -313,6 +308,7 @@ int handle_src_event(int event, void *extra_data, void *client_data)
   return 0;
 }  /* handle_src_event */
 
+/* Callback for UM smart source events. */
 int ssrc_event_cb(lbm_ssrc_t *ssrc, int event, void *extra_data, void *client_data)
 {
   handle_src_event(event, extra_data, client_data);
@@ -320,6 +316,7 @@ int ssrc_event_cb(lbm_ssrc_t *ssrc, int event, void *extra_data, void *client_da
   return 0;
 }  /* ssrc_event_cb */
 
+/* Callback for UM source events. */
 int src_event_cb(lbm_src_t *src, int event, void *extra_data, void *client_data)
 {
   handle_src_event(event, extra_data, client_data);
@@ -327,6 +324,8 @@ int src_event_cb(lbm_src_t *src, int event, void *extra_data, void *client_data)
   return 0;
 }  /* src_event_cb */
 
+
+/* UM callback for force reclaiom events. */
 int force_reclaim_cb(const char *topic_str, lbm_uint_t seqnum, void *clientd)
 {
   fprintf(stderr, "force_reclaim_cb: topic_str='%s', seqnum=%d, cur_flight_size=%d, max_flight_size=%d,\n",
@@ -338,6 +337,7 @@ int force_reclaim_cb(const char *topic_str, lbm_uint_t seqnum, void *clientd)
 }  /* force_reclaim_cb */
 
 
+/* The publisher can load balance messages across up to 16 sources. */
 int num_srcs = 0;
 int global_cur_src = 0;
 #define MAX_SRCS 16
@@ -360,9 +360,8 @@ void create_sources(lbm_context_t *ctx)
   E(lbm_src_topic_attr_setopt(src_attr, "ume_force_reclaim_function",
       &force_reclaim_cb_conf, sizeof(force_reclaim_cb_conf)));
 
+  /* Parse out the individual topics in o_topics and create source objects. */
   char *strtok_context;
-
-  /* Create source objects. */
   char *work_str = CPRT_STRDUP(o_topics);
   char *cur_topic = CPRT_STRTOK(work_str, ",", &strtok_context);
   while (cur_topic != NULL) {
@@ -616,7 +615,8 @@ int main(int argc, char **argv)
   /* Don't count initial message. */
   result_rate = (double)(actual_sends - 1) / result_rate;
 
-  histo_print4();
+  /* This is for internal UM debugging. */
+  /* histo_print4(); */
 
   if (hist_buckets != NULL) {
     hist_print();

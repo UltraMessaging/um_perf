@@ -67,6 +67,7 @@ int warmup_rate;
 perf_msg_t *perf_msg;
 int global_max_tight_sends;
 
+
 char usage_str[] = "Usage: sock_perf_pub [-h] [-a affinity_cpu] [-g group] [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-s sleep_usec] [-w warmup_loops,warmup_rate]";
 
 void usage(char *msg) {
@@ -97,6 +98,7 @@ void help() {
 }
 
 
+/* Process command-line options. */
 void get_my_opts(int argc, char **argv)
 {
   int opt;  /* Loop variable for getopt(). */
@@ -105,7 +107,7 @@ void get_my_opts(int argc, char **argv)
   o_group = CPRT_STRDUP("");
   o_histogram = CPRT_STRDUP("0,0");
   o_interface = CPRT_STRDUP("");
-  o_warmup = CPRT_STRDUP("15,5");
+  o_warmup = CPRT_STRDUP("0,0");
 
   while ((opt = getopt(argc, argv, "ha:g:H:i:m:n:r:s:w:")) != EOF) {
     switch (opt) {
@@ -144,6 +146,7 @@ void get_my_opts(int argc, char **argv)
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
+  if (hist_num_buckets > 0) { ASSRT(hist_ns_per_bucket > 0); }
 
   /* Parse the group option. */
   ASSRT(strlen(o_group) > 0);
@@ -167,11 +170,13 @@ void get_my_opts(int argc, char **argv)
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
+  if (warmup_loops > 0) { ASSRT(warmup_rate > 0); }
 
-  if (optind != argc) { usage("Extra parameter(s)"); }
+  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 
+/* Histogram. */
 int *hist_buckets = NULL;
 int hist_min_sample = 999999999;
 int hist_max_sample = 0;
@@ -188,6 +193,7 @@ void hist_init()
   hist_num_samples = 0;
   hist_sample_sum = 0;
 
+  /* Init histogram (also makes sure it is mapped to physical memory. */
   int i;
   for (i = 0; i < hist_num_buckets; i++) {
     hist_buckets[i] = 0;
@@ -230,8 +236,8 @@ void hist_print()
   for (i = 0; i < hist_num_buckets; i++) {
     printf("%d\n", hist_buckets[i]);
   }
-  printf("hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
-      hist_overflows, hist_min_sample, hist_max_sample);
+  printf("o_histogram=%s, hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
+      o_histogram, hist_overflows, hist_min_sample, hist_max_sample);
   uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
   printf("hist_num_samples=%d, average_sample=%d,\n",
       hist_num_samples, (int)average_sample);
