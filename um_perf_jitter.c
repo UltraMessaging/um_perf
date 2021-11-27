@@ -19,21 +19,19 @@
   THE LIKELIHOOD OF SUCH DAMAGES.
 */
 
-/* This is needed for affinity setting. */
-#define _GNU_SOURCE
+#include "cprt.h"
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <inttypes.h>
+#if ! defined(_WIN32)
+  #include <stdlib.h>
+  #include <unistd.h>
+#endif
 
 #include "um_perf.h"
 
 
 /* Command-line options and their defaults */
-static int o_affinity_cpu = 1;
+static int o_affinity_cpu = -1;
 static char *o_histogram = NULL;
 static int o_jitter_loops = 10000000;
 static int o_malloc_size = 0;
@@ -71,32 +69,34 @@ void get_my_opts(int argc, char **argv)
   int opt;  /* Loop variable for getopt(). */
 
   /* Set defaults for string options. */
-  o_histogram = strdup("0,0");
+  o_histogram = CPRT_STRDUP("0,0");
 
   while ((opt = getopt(argc, argv, "ha:H:j:m:s:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
-      case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
-      case 'j': SAFE_ATOI(optarg, o_jitter_loops); break;
-      case 'm': SAFE_ATOI(optarg, o_malloc_size); break;
-      case 's': SAFE_ATOI(optarg, o_spin_cnt); break;
+      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
+      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
+      case 'j': CPRT_ATOI(optarg, o_jitter_loops); break;
+      case 'm': CPRT_ATOI(optarg, o_malloc_size); break;
+      case 's': CPRT_ATOI(optarg, o_spin_cnt); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
 
   if (optind != argc) { usage("Extra parameter(s)"); }
 
-  char *work_str = strdup(o_histogram);
-  char *histo_num_buckets_str = strtok(work_str, ",");
+  char *strtok_context;
+
+  char *work_str = CPRT_STRDUP(o_histogram);
+  char *histo_num_buckets_str = CPRT_STRTOK(work_str, ",", &strtok_context);
   ASSRT(histo_num_buckets_str != NULL);
-  SAFE_ATOI(histo_num_buckets_str, histo_num_buckets);
+  CPRT_ATOI(histo_num_buckets_str, histo_num_buckets);
 
-  char *histo_ns_per_bucket_str = strtok(NULL, ",");
+  char *histo_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
   ASSRT(histo_ns_per_bucket_str != NULL);
-  SAFE_ATOI(histo_ns_per_bucket_str, histo_ns_per_bucket);
+  CPRT_ATOI(histo_ns_per_bucket_str, histo_ns_per_bucket);
 
-  ASSRT(strtok(NULL, ",") == NULL);
+  ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
 }  /* get_my_opts */
 
@@ -204,17 +204,17 @@ void jitter_loop()
     }
   }
 
-  /* Warm up the cache for clock_gettime(). */
-  clock_gettime(CLOCK_MONOTONIC, &ts1);
-  clock_gettime(CLOCK_MONOTONIC, &ts2);
-  clock_gettime(CLOCK_MONOTONIC, &ts1);
-  clock_gettime(CLOCK_MONOTONIC, &ts2);
+  /* Warm up the cache. */
+  CPRT_GETTIME(&ts1);
+  CPRT_GETTIME(&ts2);
+  CPRT_GETTIME(&ts1);
+  CPRT_GETTIME(&ts2);
 
   for (i = 0; i < o_jitter_loops; i++) {
     uint64_t ts_this_ns;
 
     /* Two timestamps in a row measures the duration of the timestamp. */
-    clock_gettime(CLOCK_MONOTONIC, &ts1);
+    CPRT_GETTIME(&ts1);
 
     if (malloc_size > 0) {
       if (mallocs[i % NUM_MALLOCS] != NULL) {
@@ -228,9 +228,9 @@ void jitter_loop()
       }
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    CPRT_GETTIME(&ts2);
 
-    DIFF_TS(ts_this_ns, ts2, ts1);
+    CPRT_DIFF_TS(ts_this_ns, ts2, ts1);
     if (do_histogram) {
       histo_input((int)ts_this_ns);
     }
@@ -249,7 +249,8 @@ void jitter_loop()
 
 int main(int argc, char **argv)
 {
-  cpu_set_t cpuset;
+  uint64_t cpuset;
+  CPRT_NET_START;
 
   get_my_opts(argc, argv);
 
@@ -257,10 +258,11 @@ int main(int argc, char **argv)
     histo_create();
   }
 
-  CPU_ZERO(&cpuset);
-  CPU_SET(o_affinity_cpu, &cpuset);
-  errno = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-  if (errno != 0) { PERRNO("pthread_setaffinity_np"); }
+  if (o_affinity_cpu > -1) {
+    CPRT_CPU_ZERO(&cpuset);
+    CPRT_CPU_SET(o_affinity_cpu, &cpuset);
+    cprt_set_affinity(cpuset);
+  }
 
   jitter_loop();
 
@@ -268,5 +270,6 @@ int main(int argc, char **argv)
   printf("o_affinity_cpu=%d, o_histogram=%s, o_jitter_loops=%d, o_malloc_size=%d, o_spin_cnt=%d, \n",
       o_affinity_cpu, o_histogram, o_jitter_loops, o_malloc_size, o_spin_cnt);
 
-  exit(0);
+  CPRT_NET_CLEANUP;
+  return 0;
 }  /* main */

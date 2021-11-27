@@ -3,6 +3,8 @@
 Tools for measuring the performance of Ultra Messaging (UM) persistence
 and streaming.
 
+# Table of contents
+
 - [um_perf - test programs to measure the performance of Ultra Messaging.](#um_perf---test-programs-to-measure-the-performance-of-ultra-messaging)
   - [COPYRIGHT AND LICENSE](#copyright-and-license)
   - [REPOSITORY](#repository)
@@ -37,21 +39,25 @@ and streaming.
       - [Persist Mode](#persist-mode)
       - [Spin Count](#spin-count)
     - [Affinity](#affinity)
+    - [sock_perf_sub](#sock_perf_sub)
   - [MEASUREMENT OUTLIERS](#measurement-outliers)
     - [Interruptions](#interruptions)
   - [CODE NOTES](#code-notes)
     - [Error Handling](#error-handling)
-    - [SAFE_ATOI](#safe_atoi)
-    - [DIFF_TS](#diff_ts)
+    - [Portability](#portability)
+    - [CPRT_ATOI](#cprt_atoi)
+    - [CPRT_DIFF_TS](#cprt_diff_ts)
     - [send_loop()](#send_loop)
   - [Notes on Going Fast](#notes-on-going-fast)
+    - [RPP Vs. SPP](#rpp-vs-spp)
     - [Core Count and Network Interfaces](#core-count-and-network-interfaces)
+    - [Intelligent Batching](#intelligent-batching)
     - [Burst VS. Sustain?](#burst-vs-sustain)
       - [Loss Recovery at 1.64M Msgs/Sec](#loss-recovery-at-164m-msgssec)
     - [Exceeding Line Rate?](#exceeding-line-rate)
     - [Busy Looping](#busy-looping)
     - [Application Optimizations](#application-optimizations)
-    - [Server Optimizations](#server-optimizations)
+    - [Host Optimizations](#host-optimizations)
   - [INFORMATICA TEST HARDWARE](#informatica-test-hardware)
     - [Host 1](#host-1)
     - [Host 2](#host-2)
@@ -91,8 +97,10 @@ See https://github.com/UltraMessaging/um_perf for code and documentation.
 ## TESTS
 
 Informatica used the tools in this repository to measure the
-maximum-sustainable message rate for streaming and persistent sources.
-The primary motivation for these tools is to measure persistence.
+maximum-sustainable message rate for streaming and persistent sources,
+the results of which are outlined in this document.
+The primary motivation for these tools is to measure persistence,
+but these tools can be used for a variety of purposes.
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
 but not enough to run a representative test of persistence.
@@ -1012,15 +1020,16 @@ Contact UM Support for more information on using the histograms.
 ### um_perf_sub
 
 ````
-Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-s spin_cnt]
-  [-t topic] [-x xml_config]
+Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-E] [-s spin_cnt]
+  [-p persist_mode] [-t topics] [-x xml_config]
 where:
   -h : print help
   -a affinity_cpu : CPU number (0..N-1) for receive thread [%d]
   -c config : configuration file; can be repeated [%s]
+  -E : exit on EOS [%d]
   -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]
   -s spin_cnt : empty loop inside receiver callback [%d]
-  -t topics : comma-separated topic strings [%s]
+  -t topics : comma-separated topic strings to subscribe [%s]
   -x xml_config : configuration file [%s]
 ````
 
@@ -1044,7 +1053,6 @@ However, it turns out that the subscriber run with "-p r" is compatible with
 all three data modes (streaming, RPP, and SPP) since the receiver simply
 conforms to the type of source.
 So for all tests, we run "um_perf_sub" with "-p r".
-
 
 #### Spin Count
 
@@ -1087,12 +1095,41 @@ with 0x01 representing CPU number 0, 0x02 representing CPU 1,
 0x04 representing CPU 2, etc.
 The um_perf tools' "-a" options expect the actual CPU number.
 
+### sock_perf_sub
+
+````
+Usage: sock_perf_pub [-h] [-a affinity_cpu] [-g group]
+  [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs]
+  [-s store_list] [-r rate] [-s sleep_usec] [-w warmup_loops,warmup_rate]
+where:
+  -h : print help
+  -a affinity_cpu : bitmap for CPU affinity for send thread [%d]
+  -g group : multicast group address [%s]
+  -H hist_num_buckets,hist_ns_per_bucket : send time histogram [%s]
+  -i interface : interface for multicast bind [%s]
+  -m msg_len : message length [%d]
+  -n num_msgs : number of messages to send [%d]
+  -r rate : messages per second to send [%d]
+  -s sleep_usec : microseconds to sleep between sends [%d]]
+  -w warmup_loops,warmup_rate : messages to send before measurement [%s]
+````
+
+This tool does not use UM at all.
+It creates a socket and sends multicast datagrams using the same socket API
+methods as UM.
+
+Note that this tool was not written to be portable between Linux and Windows.
+
+This tool adds a second method of sending with the "-s sleep_usec" option.
+W
+
+
 ## MEASUREMENT OUTLIERS
 
 The SmartSource transport code is written to provide a very constant
 execution time.
 Dynamic memory (malloc/free) is not used during message transfer.
-There is very little source for measurement outliers
+There is very little cause for measurement outliers
 (jitter) in the SmartSource code itself.
 
 However, the measurements made at Informatica show significant outliers.
@@ -1162,9 +1199,36 @@ file name, line number, and the error message associated with the contents
 of "errno", then calls "exit(1)", terminating the program with bad status.
 This is useful if a system library function fails.
 
-### SAFE_ATOI
+Finally, the "ASSRT()" macro is handy for checking conditions that must
+be true.
+If not, an error message is printed, and the program exits with bad status.
+The error message is not very user-friendly,
+and often requires access to the source code to understand.
+For example, in the um_perf_pub tool, the "-r rate" option is not really
+an "option" - it must be supplied.
+If omitted, the "ASSRT(o_rate > 0);" line will print:
+````
+um_perf_pub.c:166, ERROR: 'o_rate > 0' not true
+````
+(The line number might be different now.)
 
-This is a helper macro that is similar to the system function "atoi()"
+### Portability
+
+The "cprt.c" and "cprt.h" files were imported from
+https://github.com/fordsfords/cprt
+to make the um_perf_pub and um_perf_sub tools portable to Linux and Windows.
+However, be aware that as of 27-Nov-2021, no attempt has yet been made to
+build or run either tool on Windows.
+
+We hope to try it out on Windows soon.
+
+Also, note that the sock_perf_pub tool is *not* suitable for Windows use.
+The socket API is different enough that a separate tool is called for.
+(This work is not currently planned.)
+
+### CPRT_ATOI
+
+CPRT_ATOI is a helper macro that is similar to the system function "atoi()"
 with three improvements:
 * Automatically conforms to different integer types
 (8-bit, 16-bit, 32-bit, 64-bit, signed or unsigned).
@@ -1173,9 +1237,9 @@ with three improvements:
 
 As with the "E()" macro, it accomplishes these goals without code clutter.
 
-### DIFF_TS
+### CPRT_DIFF_TS
 
-This is a helper macro that subtracts two "struct timespec" values, as
+CPRT_DIFF_TS is a helper macro that subtracts two "struct timespec" values, as
 returned by [clock_gettime()](https://linux.die.net/man/3/clock_gettime),
 and puts the difference into a uint64_t variable
 as the number of nanoseconds between the two timestamps.
@@ -1216,7 +1280,7 @@ But none of this is useful in measuring the maximum sustainable throughput.
 Instead, evenly-spaced messages should be sent to get an accurate measurement
 of the maximum sustainable throughput.
 This gives you a baseline for calculating the size of the buffer required to
-handle bursts of a maximum intensity and duration.
+handle bursts of maximum intensity and duration.
 
 When running at or near the maximum sustainable throughput,
 some amount of buffering latency is inevitable due to the subscriber being

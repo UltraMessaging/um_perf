@@ -1,4 +1,4 @@
-/* um_perf_pub.c - measure one-way latency under load (publisher). */
+/* um_perf_pub.c - performance measurement tool. */
 /*
   Copyright (c) 2021 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
@@ -19,22 +19,23 @@
   THE LIKELIHOOD OF SUCH DAMAGES.
 */
 
-/* This is needed for affinity setting. */
-#define _GNU_SOURCE
+#include "cprt.h"
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <unistd.h>
+#if ! defined(_WIN32)
+  #include <stdlib.h>
+  #include <unistd.h>
+#endif
 
 #include "lbm/lbm.h"
 #include "um_perf.h"
 
+void histo_print4();
+
 
 /* Command-line options and their defaults. String defaults are set
  * in "get_my_opts()". */
-static int o_affinity_cpu = 1;
+static int o_affinity_cpu = -1;
 static char *o_config = NULL;
 static int o_generic_src = 0;
 static char *o_histogram = NULL;  /* -H */
@@ -43,15 +44,15 @@ static int o_loss_percent = 0;  /* -L */
 static int o_msg_len = 700;
 static int o_num_msgs = 10000000;
 static char *o_persist = NULL;
-static int o_rate = 1000000;
+static int o_rate = 0;
 static char *o_topics = NULL;
 static char *o_warmup = NULL;
 static char *o_xml_config = NULL;
 
 /* Parameters parsed out from command-line options. */
 char *app_name;
-int histo_num_buckets;
-int histo_ns_per_bucket;
+int hist_num_buckets;
+int hist_ns_per_bucket;
 int warmup_loops;
 int warmup_rate;
 
@@ -63,11 +64,12 @@ int registration_complete;
 int cur_flight_size;
 int max_flight_size;
 
-char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H histo_num_buckets,histo_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-p persist_mode] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
   fprintf(stderr, "%s\n", usage_str);
+  CPRT_NET_CLEANUP;
   exit(1);
 }
 
@@ -78,7 +80,7 @@ void help() {
       "  -a affinity_cpu : bitmap for CPU affinity for send thread [%d]\n"
       "  -c config : configuration file; can be repeated [%s]\n"
       "  -g : generic source [%d]\n"
-      "  -H histo_num_buckets,histo_ns_per_bucket : send time histogram [%s]\n"
+      "  -H hist_num_buckets,hist_ns_per_bucket : send time histogram [%s]\n"
       "  -l linger_ms : linger time before source delete [%d]\n"
       "  -L loss_percent : Source-side artificial packet loss (after warmup) [%d]\n"
       "  -m msg_len : message length [%d]\n"
@@ -92,6 +94,7 @@ void help() {
       , o_loss_percent, o_msg_len, o_num_msgs, o_persist, o_rate, o_topics
       , o_warmup, o_xml_config
   );
+  CPRT_NET_CLEANUP;
   exit(0);
 }
 
@@ -101,48 +104,50 @@ void get_my_opts(int argc, char **argv)
   int opt;  /* Loop variable for getopt(). */
 
   /* Set defaults for string options. */
-  o_config = strdup("");
-  o_histogram = strdup("0,0");
-  o_persist = strdup("");
-  o_topics = strdup("");
-  o_warmup = strdup("15,5");
-  o_xml_config = strdup("");
+  o_config = CPRT_STRDUP("");
+  o_histogram = CPRT_STRDUP("0,0");
+  o_persist = CPRT_STRDUP("");
+  o_topics = CPRT_STRDUP("");
+  o_warmup = CPRT_STRDUP("15,5");
+  o_xml_config = CPRT_STRDUP("");
 
   while ((opt = getopt(argc, argv, "ha:c:gH:l:L:m:n:p:r:t:w:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
+      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
       /* Allow -c to be repeated, loading each config file in succession. */
       case 'c': free(o_config);
-                o_config = strdup(optarg);
+                o_config = CPRT_STRDUP(optarg);
                 E(lbm_config(o_config));
                 break;
       case 'g': o_generic_src = 1; break;
-      case 'H': free(o_histogram); o_histogram = strdup(optarg); break;
-      case 'l': SAFE_ATOI(optarg, o_linger_ms); break;
-      case 'L': SAFE_ATOI(optarg, o_loss_percent); break;
-      case 'm': SAFE_ATOI(optarg, o_msg_len); break;
-      case 'n': SAFE_ATOI(optarg, o_num_msgs); break;
-      case 'p': free(o_persist); o_persist = strdup(optarg); break;
-      case 'r': SAFE_ATOI(optarg, o_rate); break;
-      case 't': free(o_topics); o_topics = strdup(optarg); break;
-      case 'w': free(o_warmup); o_warmup = strdup(optarg); break;
-      case 'x': free(o_xml_config); o_xml_config = strdup(optarg); break;
+      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
+      case 'l': CPRT_ATOI(optarg, o_linger_ms); break;
+      case 'L': CPRT_ATOI(optarg, o_loss_percent); break;
+      case 'm': CPRT_ATOI(optarg, o_msg_len); break;
+      case 'n': CPRT_ATOI(optarg, o_num_msgs); break;
+      case 'p': free(o_persist); o_persist = CPRT_STRDUP(optarg); break;
+      case 'r': CPRT_ATOI(optarg, o_rate); break;
+      case 't': free(o_topics); o_topics = CPRT_STRDUP(optarg); break;
+      case 'w': free(o_warmup); o_warmup = CPRT_STRDUP(optarg); break;
+      case 'x': free(o_xml_config); o_xml_config = CPRT_STRDUP(optarg); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
 
-  /* Parse the histogram option: "histo_num_buckets,histo_ns_per_bucket". */
-  char *work_str = strdup(o_histogram);
-  char *histo_num_buckets_str = strtok(work_str, ",");
-  ASSRT(histo_num_buckets_str != NULL);
-  SAFE_ATOI(histo_num_buckets_str, histo_num_buckets);
+  char *strtok_context;
 
-  char *histo_ns_per_bucket_str = strtok(NULL, ",");
-  ASSRT(histo_ns_per_bucket_str != NULL);
-  SAFE_ATOI(histo_ns_per_bucket_str, histo_ns_per_bucket);
+  /* Parse the histogram option: "hist_num_buckets,hist_ns_per_bucket". */
+  char *work_str = CPRT_STRDUP(o_histogram);
+  char *hist_num_buckets_str = CPRT_STRTOK(work_str, ",", &strtok_context);
+  ASSRT(hist_num_buckets_str != NULL);
+  CPRT_ATOI(hist_num_buckets_str, hist_num_buckets);
 
-  ASSRT(strtok(NULL, ",") == NULL);
+  char *hist_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
+  ASSRT(hist_ns_per_bucket_str != NULL);
+  CPRT_ATOI(hist_ns_per_bucket_str, hist_ns_per_bucket);
+
+  ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
 
   if (strlen(o_persist) == 0) {
@@ -158,6 +163,8 @@ void get_my_opts(int argc, char **argv)
     usage("Error, -p value must be '', 'r', or 's'\n");
   }
 
+  ASSRT(o_rate > 0);
+
   if (strlen(o_xml_config) > 0) {
     /* Unlike lbm_config(), you can't load more than one XML file.
      * If user supplied -x more than once, only load last one. */
@@ -165,95 +172,95 @@ void get_my_opts(int argc, char **argv)
   }
 
   /* Parse the warmup option: "warmup_loops,warmup_rate". */
-  work_str = strdup(o_warmup);
-  char *warmup_loops_str = strtok(work_str, ",");
+  work_str = CPRT_STRDUP(o_warmup);
+  char *warmup_loops_str = CPRT_STRTOK(work_str, ",", &strtok_context);
   ASSRT(warmup_loops_str != NULL);
-  SAFE_ATOI(warmup_loops_str, warmup_loops);
+  CPRT_ATOI(warmup_loops_str, warmup_loops);
 
-  char *warmup_rate_str = strtok(NULL, ",");
+  char *warmup_rate_str = CPRT_STRTOK(NULL, ",", &strtok_context);
   ASSRT(warmup_rate_str != NULL);
-  SAFE_ATOI(warmup_rate_str, warmup_rate);
+  CPRT_ATOI(warmup_rate_str, warmup_rate);
 
-  ASSRT(strtok(NULL, ",") == NULL);
+  ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
 
   if (optind != argc) { usage("Extra parameter(s)"); }
 }  /* get_my_opts */
 
 
-int *histo_buckets = NULL;
-int histo_min_sample = 999999999;
-int histo_max_sample = 0;
-int histo_overflows = 0;  /* Number of values above the last bucket. */
-int histo_num_samples = 0;
-uint64_t histo_sample_sum = 0;
+int *hist_buckets = NULL;
+int hist_min_sample = 999999999;
+int hist_max_sample = 0;
+int hist_overflows = 0;  /* Number of values above the last bucket. */
+int hist_num_samples = 0;
+uint64_t hist_sample_sum = 0;
 
-void histo_init()
+void hist_init()
 {
   /* Re-initialize the data. */
-  histo_min_sample = 999999999;
-  histo_max_sample = 0;
-  histo_overflows = 0;  /* Number of values above the last bucket. */
-  histo_num_samples = 0;
-  histo_sample_sum = 0;
+  hist_min_sample = 999999999;
+  hist_max_sample = 0;
+  hist_overflows = 0;  /* Number of values above the last bucket. */
+  hist_num_samples = 0;
+  hist_sample_sum = 0;
 
   int i;
-  for (i = 0; i < histo_num_buckets; i++) {
-    histo_buckets[i] = 0;
+  for (i = 0; i < hist_num_buckets; i++) {
+    hist_buckets[i] = 0;
   }
-}  /* histo_init */
+}  /* hist_init */
 
-void histo_create()
+void hist_create()
 {
-  histo_buckets = (int *)malloc(histo_num_buckets * sizeof(int));
+  hist_buckets = (int *)malloc(hist_num_buckets * sizeof(int));
 
-  histo_init();
-}  /* histo_create */
+  hist_init();
+}  /* hist_create */
 
-void histo_input(int in_sample)
+void hist_input(int in_sample)
 {
-  ASSRT(histo_buckets != NULL);
+  ASSRT(hist_buckets != NULL);
 
-  histo_num_samples++;
-  histo_sample_sum += in_sample;
+  hist_num_samples++;
+  hist_sample_sum += in_sample;
 
-  if (in_sample > histo_max_sample) {
-    histo_max_sample = in_sample;
+  if (in_sample > hist_max_sample) {
+    hist_max_sample = in_sample;
   }
-  if (in_sample < histo_min_sample) {
-    histo_min_sample = in_sample;
+  if (in_sample < hist_min_sample) {
+    hist_min_sample = in_sample;
   }
 
-  int bucket = in_sample / histo_ns_per_bucket;
-  if (bucket >= histo_num_buckets) {
-    histo_overflows++;
+  int bucket = in_sample / hist_ns_per_bucket;
+  if (bucket >= hist_num_buckets) {
+    hist_overflows++;
   }
   else {
-    histo_buckets[bucket]++;
+    hist_buckets[bucket]++;
   }
-}  /* histo_input */
+}  /* hist_input */
 
-void histo_print()
+void hist_print()
 {
   int i;
-  for (i = 0; i < histo_num_buckets; i++) {
-    printf("%d\n", histo_buckets[i]);
+  for (i = 0; i < hist_num_buckets; i++) {
+    printf("%d\n", hist_buckets[i]);
   }
-  printf("histo_overflows=%d, histo_min_sample=%d, histo_max_sample=%d,\n",
-      histo_overflows, histo_min_sample, histo_max_sample);
-  uint64_t average_sample = histo_sample_sum / (uint64_t)histo_num_samples;
-  printf("histo_num_samples=%d, average_sample=%d,\n",
-      histo_num_samples, (int)average_sample);
-}  /* histo_print */
+  printf("hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
+      hist_overflows, hist_min_sample, hist_max_sample);
+  uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
+  printf("hist_num_samples=%d, average_sample=%d,\n",
+      hist_num_samples, (int)average_sample);
+}  /* hist_print */
 
-void histo_test()
+void hist_test()
 {
-  histo_input(1);
-  histo_input(histo_num_buckets * histo_ns_per_bucket - 1);
-  histo_print();
-  histo_input(histo_num_buckets * histo_ns_per_bucket);
-  histo_print();
-}  /* histo_test */
+  hist_input(1);
+  hist_input(hist_num_buckets * hist_ns_per_bucket - 1);
+  hist_print();
+  hist_input(hist_num_buckets * hist_ns_per_bucket);
+  hist_print();
+}  /* hist_test */
 
 
 int handle_src_event(int event, void *extra_data, void *client_data)
@@ -344,9 +351,11 @@ void create_sources(lbm_context_t *ctx)
   E(lbm_src_topic_attr_setopt(src_attr, "ume_force_reclaim_function",
       &force_reclaim_cb_conf, sizeof(force_reclaim_cb_conf)));
 
+  char *strtok_context;
+
   /* Create source objects. */
-  char *work_str = strdup(o_topics);
-  char *cur_topic = strtok(work_str, ",");
+  char *work_str = CPRT_STRDUP(o_topics);
+  char *cur_topic = CPRT_STRTOK(work_str, ",", &strtok_context);
   while (cur_topic != NULL) {
     ASSRT(strlen(cur_topic) > 0);
     ASSRT(num_srcs < MAX_SRCS);
@@ -364,7 +373,7 @@ void create_sources(lbm_context_t *ctx)
     }
 
     num_srcs++;
-    cur_topic = strtok(NULL, ",");
+    cur_topic = CPRT_STRTOK(NULL, ",", &strtok_context);
   }
 
   free(work_str);
@@ -397,8 +406,9 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
   static lbm_ssrc_send_ex_info_t ssrc_exinfo;
   int local_cur_src;
 
+  /* Set up local variable so that test is fast. */
   int do_histogram = 0;
-  if (histo_buckets != NULL) {
+  if (hist_buckets != NULL) {
       do_histogram = 1;
   }
 
@@ -417,44 +427,47 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
 
   /* Send messages evenly-spaced using busy looping. Based on algorithm:
    * http://www.geeky-boy.com/catchup/html/ */
-  clock_gettime(CLOCK_MONOTONIC, &start_ts);
+  CPRT_GETTIME(&start_ts);
   cur_ts = start_ts;
   num_sent = 0;
   do {  /* while num_sent < num_sends */
     uint64_t ns_so_far;
-    DIFF_TS(ns_so_far, cur_ts, start_ts);
+    CPRT_DIFF_TS(ns_so_far, cur_ts, start_ts);
     /* The +1 is because we want to send, then pause. */
     uint64_t should_have_sent = (ns_so_far * sends_per_sec)/1000000000 + 1;
     if (should_have_sent > num_sends) {
       should_have_sent = num_sends;
     }
-
-    /* If we are behind where we should be, get caught up. */
     if (should_have_sent - num_sent > max_tight_sends) {
       max_tight_sends = should_have_sent - num_sent;
     }
+
+    /* If we are behind where we should be, get caught up. */
     while (num_sent < should_have_sent) {
       if (o_generic_src) {
-        /* Construct message in shared memory buffer. */
+        /* Construct message. */
         perf_msg->msg_num = num_sent;
         perf_msg->flags = 0;
 
         struct timespec send_start_ts;
         if (do_histogram) {
-          clock_gettime(CLOCK_MONOTONIC, &send_start_ts);
+          CPRT_GETTIME(&send_start_ts);
         }
+
+        /* Send message. */
         int e = lbm_src_send(srcs[local_cur_src], (void *)perf_msg, o_msg_len, lbm_send_flags);
         if (e == -1) {
           printf("num_sent=%"PRIu64", global_max_tight_sends=%d, max_flight_size=%d\n",
               num_sent, global_max_tight_sends, max_flight_size);
         }
-        E(e);
+        E(e);  /* If error, print message and fail. */
+
         if (do_histogram) {
           struct timespec send_return_ts;
-          clock_gettime(CLOCK_MONOTONIC, &send_return_ts);
+          CPRT_GETTIME(&send_return_ts);
           uint64_t ns_send;
-          DIFF_TS(ns_send, send_return_ts, send_start_ts);
-          histo_input((int)ns_send);
+          CPRT_DIFF_TS(ns_send, send_return_ts, send_start_ts);
+          hist_input((int)ns_send);
         }
       }
       else {  /* Smart Src API. */
@@ -464,21 +477,23 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
 
         struct timespec send_start_ts;
         if (do_histogram) {
-          clock_gettime(CLOCK_MONOTONIC, &send_start_ts);
+          CPRT_GETTIME(&send_start_ts);
         }
+
         /* Send message and get next buffer from shared memory. */
         int e = lbm_ssrc_send_ex(ssrcs[local_cur_src], (char *)perf_msg, o_msg_len, lbm_send_flags, &ssrc_exinfo);
         if (e == -1) {
           printf("num_sent=%"PRIu64", global_max_tight_sends=%d, max_flight_size=%d\n",
               num_sent, global_max_tight_sends, max_flight_size);
         }
-        E(e);
+        E(e);  /* If error, print message and fail. */
+
         if (do_histogram) {
           struct timespec send_return_ts;
-          clock_gettime(CLOCK_MONOTONIC, &send_return_ts);
+          CPRT_GETTIME(&send_return_ts);
           uint64_t ns_send;
-          DIFF_TS(ns_send, send_return_ts, send_start_ts);
-          histo_input((int)ns_send);
+          CPRT_DIFF_TS(ns_send, send_return_ts, send_start_ts);
+          hist_input((int)ns_send);
         }
       }
 
@@ -495,7 +510,7 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
       }
       num_sent++;
     }  /* while num_sent < should_have_sent */
-    clock_gettime(CLOCK_MONOTONIC, &cur_ts);
+    CPRT_GETTIME(&cur_ts);
   } while (num_sent < num_sends);
 
   global_cur_src = local_cur_src;
@@ -508,18 +523,21 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
 
 int main(int argc, char **argv)
 {
-  cpu_set_t cpuset;
+  uint64_t cpuset;
   lbm_context_t *ctx;
   struct timespec start_ts;  /* struct timespec is used by clock_gettime(). */
   struct timespec end_ts;
   uint64_t duration_ns;
   int actual_sends;
   double result_rate;
+  CPRT_NET_START;
+
+  CPRT_INITTIME();
 
   get_my_opts(argc, argv);
 
-  if (histo_num_buckets > 0) {
-    histo_create();
+  if (hist_num_buckets > 0) {
+    hist_create();
   }
 
   /* Leave "comma space" at end of line to make parsing output easier. */
@@ -532,10 +550,11 @@ int main(int argc, char **argv)
   E(lbm_context_create(&ctx, NULL, NULL, NULL));
 
   /* Pin time-critical thread (sending thread) to requested CPU core. */
-  CPU_ZERO(&cpuset);
-  CPU_SET(o_affinity_cpu, &cpuset);
-  errno = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-  if (errno != 0) { PERRNO("pthread_setaffinity_np"); }
+  if (o_affinity_cpu > -1) {
+    CPRT_CPU_ZERO(&cpuset);
+    CPRT_CPU_SET(o_affinity_cpu, &cpuset);
+    cprt_set_affinity(cpuset);
+  }
 
   create_sources(ctx);
 
@@ -575,20 +594,23 @@ int main(int argc, char **argv)
   }
 
   /* Measure overall send rate by timing the main send loop. */
-  if (histo_buckets != NULL) {
-    histo_init();  /* Zero out data from warmup period. */
+  if (hist_buckets != NULL) {
+    hist_init();  /* Zero out data from warmup period. */
   }
-  clock_gettime(CLOCK_MONOTONIC, &start_ts);
+  CPRT_GETTIME(&start_ts);
   actual_sends = send_loop(o_num_msgs, o_rate);
-  clock_gettime(CLOCK_MONOTONIC, &end_ts);
-  DIFF_TS(duration_ns, end_ts, start_ts);
+  CPRT_GETTIME(&end_ts);
+  CPRT_DIFF_TS(duration_ns, end_ts, start_ts);
 
   result_rate = (double)(duration_ns);
   result_rate /= (double)1000000000;
-  result_rate = (double)actual_sends / result_rate;
+  /* Don't count initial message. */
+  result_rate = (double)(actual_sends - 1) / result_rate;
 
-  if (histo_buckets != NULL) {
-    histo_print();
+  histo_print4();
+
+  if (hist_buckets != NULL) {
+    hist_print();
   }
 
   /* Leave "comma space" at end of line to make parsing output easier. */
@@ -620,5 +642,6 @@ int main(int argc, char **argv)
 
   free(msg_buf);
 
+  CPRT_NET_CLEANUP;
   return 0;
 }  /* main */

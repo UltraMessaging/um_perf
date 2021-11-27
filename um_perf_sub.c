@@ -1,4 +1,4 @@
-/* um_perf_sub.c - measure one-way latency under load (subscriber). */
+/* um_perf_sub.c - performance measurement tool. */
 /*
   Copyright (c) 2021 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
@@ -19,21 +19,20 @@
   THE LIKELIHOOD OF SUCH DAMAGES.
 */
 
-/* This is needed for affinity setting. */
-#define _GNU_SOURCE
+#include "cprt.h"
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <unistd.h>
+#if ! defined(_WIN32)
+  #include <stdlib.h>
+  #include <unistd.h>
+#endif
 
 #include "lbm/lbm.h"
 #include "um_perf.h"
 
 /* Command-line options and their defaults. String defaults are set
  * in "get_my_opts()". */
-static int o_affinity_cpu = 0;
+static int o_affinity_cpu = -1;
 static char *o_config = NULL;
 static int o_exit_on_eos = 0;  /* -E */
 static char *o_persist = NULL;
@@ -44,11 +43,12 @@ static char *o_xml_config = NULL;
 /* Globals. The code depends on the loader initializing them to all zeros. */
 char *app_name;
 
-char usage_str[] = "Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-E] [-s spin_cnt] [-t topic] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_sub [-h] [-a affinity_cpu] [-c config] [-E] [-p persist_mode] [-s spin_cnt] [-t topics] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
   fprintf(stderr, "%s\n", usage_str);
+  CPRT_NET_CLEANUP;
   exit(1);
 }
 
@@ -61,11 +61,12 @@ void help() {
       "  -E : exit on EOS [%d]\n"
       "  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) [%s]\n"
       "  -s spin_cnt : empty loop inside receiver callback [%d]\n"
-      "  -t topics : comma-separated topic strings [%s]\n"
+      "  -t topics : comma-separated topic strings to subscribe [%s]\n"
       "  -x xml_config : configuration file [%s]\n"
       , o_affinity_cpu, o_config, o_exit_on_eos, o_persist, o_spin_cnt
       , o_topics, o_xml_config
   );
+  CPRT_NET_CLEANUP;
   exit(0);
 }
 
@@ -75,25 +76,25 @@ void get_my_opts(int argc, char **argv)
   int opt;  /* Loop variable for getopt(). */
 
   /* Set defaults for string options. */
-  o_config = strdup("");
-  o_persist = strdup("");
-  o_topics = strdup("");
-  o_xml_config = strdup("");
+  o_config = CPRT_STRDUP("");
+  o_persist = CPRT_STRDUP("");
+  o_topics = CPRT_STRDUP("");
+  o_xml_config = CPRT_STRDUP("");
 
   while ((opt = getopt(argc, argv, "ha:c:Ep:s:t:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': SAFE_ATOI(optarg, o_affinity_cpu); break;
+      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
       /* Allow -c to be repeated, loading each config file in succession. */
       case 'c': free(o_config);
-                o_config = strdup(optarg);
+                o_config = CPRT_STRDUP(optarg);
                 E(lbm_config(o_config));  /* Allow multiple calls. */
                 break;
       case 'E': o_exit_on_eos = 1; break;
-      case 'p': free(o_persist); o_persist = strdup(optarg); break;
-      case 's': SAFE_ATOI(optarg, o_spin_cnt); break;
-      case 't': free(o_topics); o_topics = strdup(optarg); break;
-      case 'x': free(o_xml_config); o_xml_config = strdup(optarg); break;
+      case 'p': free(o_persist); o_persist = CPRT_STRDUP(optarg); break;
+      case 's': CPRT_ATOI(optarg, o_spin_cnt); break;
+      case 't': free(o_topics); o_topics = CPRT_STRDUP(optarg); break;
+      case 'x': free(o_xml_config); o_xml_config = CPRT_STRDUP(optarg); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
@@ -132,16 +133,17 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
   static uint64_t max_latency;
   static uint64_t sum_latencies;  /* For calculating average latencies. */
   static uint64_t num_timestamps; /* For calculating average latencies. */
-  cpu_set_t cpuset;
+  uint64_t cpuset;
 
   switch (msg->type) {
   case LBM_MSG_BOS:
     /* Assume receive thread is calling this; pin the time-critical thread
      * to the requested CPU. */
-    CPU_ZERO(&cpuset);
-    CPU_SET(o_affinity_cpu, &cpuset);
-    errno = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
-    if (errno != 0) { PERRNO("pthread_setaffinity_np"); }
+    if (o_affinity_cpu > -1) {
+      CPRT_CPU_ZERO(&cpuset);
+      CPRT_CPU_SET(o_affinity_cpu, &cpuset);
+      cprt_set_affinity(cpuset);
+    }
 
     num_rcv_msgs = 0;
     num_rx_msgs = 0;
@@ -167,6 +169,7 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
     fflush(stdout);
 
     if (o_exit_on_eos) {
+      CPRT_NET_CLEANUP;
       exit(0);
     }
     break;
@@ -192,8 +195,8 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
       struct timespec cur_ts;
       uint64_t diff_ns;
       /* Calculate one-way latency for this message. */
-      clock_gettime(CLOCK_MONOTONIC, &cur_ts);
-      DIFF_TS(diff_ns, cur_ts, perf_msg->send_ts);
+      CPRT_GETTIME(&cur_ts);
+      CPRT_DIFF_TS(diff_ns, cur_ts, perf_msg->send_ts);
 
       if (diff_ns < min_latency) min_latency = diff_ns;
       if (diff_ns > max_latency) max_latency = diff_ns;
@@ -230,6 +233,7 @@ int main(int argc, char **argv)
 #define MAX_RCVS 16
   lbm_rcv_t *rcvs[MAX_RCVS];
   int num_rcvs = 0;
+  CPRT_NET_START;
 
   get_my_opts(argc, argv);
 
@@ -244,8 +248,10 @@ int main(int argc, char **argv)
 
   E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x6"));
 
-  char *work_string = strdup(o_topics);
-  char *cur_topic = strtok(work_string, ",");
+  char *strtok_context;
+
+  char *work_string = CPRT_STRDUP(o_topics);
+  char *cur_topic = CPRT_STRTOK(work_string, ",", &strtok_context);
   while (cur_topic != NULL) {
     ASSRT(strlen(cur_topic) > 0);
     ASSRT(num_rcvs < MAX_RCVS);
@@ -253,13 +259,14 @@ int main(int argc, char **argv)
     E(lbm_rcv_create(&rcvs[num_rcvs], ctx, topic_obj, rcv_callback, NULL, NULL));
 
     num_rcvs++;
-    cur_topic = strtok(NULL, ",");
+    cur_topic = CPRT_STRTOK(NULL, ",", &strtok_context);
   }
 
   /* The subscriber must be "kill"ed externally. */
   sleep(2000000000);  /* 23+ centuries. */
 
-  /* Should delete receivers and context. */
+  /* Should delete receivers and context, but this tool never exits. */
 
+  CPRT_NET_CLEANUP;
   return 0;
 }  /* main */
