@@ -38,8 +38,8 @@ and streaming.
     - [um_perf_sub](#um_perf_sub)
       - [Persist Mode](#persist-mode)
       - [Spin Count](#spin-count)
-    - [Affinity](#affinity)
     - [sock_perf_sub](#sock_perf_sub)
+    - [Affinity](#affinity)
   - [MEASUREMENT OUTLIERS](#measurement-outliers)
     - [Interruptions](#interruptions)
   - [CODE NOTES](#code-notes)
@@ -1068,33 +1068,6 @@ won't optimize the loop away.
 This option is not used in these tests, but can be used to artificially
 slow down the subscriber.
 
-### Affinity
-
-The perf tools' "-a" command-line option is used to specify the CPU core number
-to use for the time-critical thread.
-
-For the publisher (um_perf_pub.c),
-the time-critical thread is the "main" thread,
-since that is the thread that sends the messages.
-The publisher program is typically started with affinity set to a
-non-critical CPU core, typically 1, using the "taskset" command.
-The publisher creates its context, which creates the context thread,
-inheriting the CPU affinity to core 1.
-Then, before it starts sending messages,
-it sets affinity to the CPU core number specified with the "-a"
-command-line option.
-
-For the subscriber (um_perf_sub.c),
-the time-critical thread is the "context" thread,
-since that is the thread that reads the network socket.
-The context thread's affinity is set when the context thread delivers the BOS event
-(beginning of session) to the application's receiver callback.
-
-ATTENTION: the "taskset" command expects a bitmap of CPUs,
-with 0x01 representing CPU number 0, 0x02 representing CPU 1,
-0x04 representing CPU 2, etc.
-The um_perf tools' "-a" options expect the actual CPU number.
-
 ### sock_perf_sub
 
 ````
@@ -1121,8 +1094,37 @@ methods as UM.
 Note that this tool was not written to be portable between Linux and Windows.
 
 This tool adds a second method of sending with the "-s sleep_usec" option.
-W
+The "-r" and "-s" options are mutually exclusive; "-r rate" uses the catchup
+algorithm to send at potentially very high rates without sleeping
+(busy looping),
+whereas "-s sleep_usec" performs a "usleep()" call between sends.
 
+### Affinity
+
+The perf tools' "-a" command-line option is used to specify the CPU core number
+to use for the time-critical thread.
+
+For the publisher (um_perf_pub.c),
+the time-critical thread is the "main" thread,
+since that is the thread that sends the messages.
+The publisher program is typically started with affinity set to a
+non-critical CPU core, typically 1, using the "taskset" command.
+The publisher creates its context, which creates the context thread,
+inheriting the CPU affinity to core 1.
+Then, before it starts sending messages,
+it sets affinity to the CPU core number specified with the "-a"
+command-line option.
+
+For the subscriber (um_perf_sub.c),
+the time-critical thread is the "context" thread,
+since that is the thread that reads the network socket.
+The context thread's affinity is set when the context thread delivers the BOS event
+(beginning of session) to the application's receiver callback.
+
+ATTENTION: the "taskset" command expects a bitmap of CPUs,
+with 0x01 representing CPU number 0, 0x02 representing CPU 1,
+0x04 representing CPU 2, etc.
+The um_perf tools' "-a" options expect the actual CPU number.
 
 ## MEASUREMENT OUTLIERS
 
