@@ -34,15 +34,16 @@ void histo_print4();
 
 
 /* Command-line options and their defaults. String defaults are set
- * in "get_my_opts()". */
+ * in "get_my_opts()".
+ */
 static int o_affinity_cpu = -1;
 static char *o_config = NULL;
 static int o_generic_src = 0;
 static char *o_histogram = NULL;  /* -H */
 static int o_linger_ms = 1000;
 static int o_loss_percent = 0;  /* -L */
-static int o_msg_len = 700;
-static int o_num_msgs = 10000000;
+static int o_msg_len = 0;
+static int o_num_msgs = 0;
 static char *o_persist = NULL;
 static int o_rate = 0;
 static char *o_topics = NULL;
@@ -135,6 +136,12 @@ void get_my_opts(int argc, char **argv)
     }  /* switch opt */
   }  /* while getopt */
 
+  /* Must supply certain required "options". */
+  ASSRT(o_rate > 0);
+  ASSRT(o_num_msgs > 0);
+  ASSRT(o_msg_len > 0);
+  ASSRT(strlen(o_topics) > 0);
+
   char *strtok_context;
 
   /* Parse the histogram option: "hist_num_buckets,hist_ns_per_bucket". */
@@ -145,6 +152,10 @@ void get_my_opts(int argc, char **argv)
 
   char *hist_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
   ASSRT(hist_ns_per_bucket_str != NULL);
+
+  ASSRT(o_rate > 0);
+
+  ASSRT(o_rate > 0);
   CPRT_ATOI(hist_ns_per_bucket_str, hist_ns_per_bucket);
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
@@ -162,8 +173,6 @@ void get_my_opts(int argc, char **argv)
   else {
     usage("Error, -p value must be '', 'r', or 's'\n");
   }
-
-  ASSRT(o_rate > 0);
 
   if (strlen(o_xml_config) > 0) {
     /* Unlike lbm_config(), you can't load more than one XML file.

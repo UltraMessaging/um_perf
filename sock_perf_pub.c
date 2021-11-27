@@ -19,7 +19,13 @@
   THE LIKELIHOOD OF SUCH DAMAGES.
 */
 
+/* The sock_perf_pub program was initially cloned from um_perf_pub and
+ * therefore uses many of the same portibility constructs defined in cprt.
+ * However, due to the differences between the Linux and Windows socket
+ * APIs, no attempt is made to make sock_perf_pub portible to Windows.
+ */
 #include "cprt.h"
+
 #include <stdio.h>
 #include <string.h>
 #if ! defined(_WIN32)
@@ -36,13 +42,14 @@
 
 
 /* Command-line options and their defaults. String defaults are set
- * in "get_my_opts()". */
+ * in "get_my_opts()".
+ */
 static int o_affinity_cpu = -1;
 static char *o_group = NULL;
 static char *o_histogram = NULL;  /* -H */
 static char *o_interface = NULL;
-static int o_msg_len = 700;
-static int o_num_msgs = 10000000;
+static int o_msg_len = 0;
+static int o_num_msgs = 0;
 static int o_rate = 0;
 static int o_sleep_usec = 0;
 static char *o_warmup = NULL;
@@ -116,8 +123,12 @@ void get_my_opts(int argc, char **argv)
     }  /* switch opt */
   }  /* while getopt */
 
-  /* Can't supply both -r and -s. */
+  /* Must supply one of -r or -s, but not both. */
   ASSRT((o_rate > 0 && o_sleep_usec == 0) || (o_rate == 0 && o_sleep_usec > 0));
+
+  /* Must supply certain required "options". */
+  ASSRT(o_num_msgs > 0);
+  ASSRT(o_msg_len > 0);
 
   char *strtok_context;
 
