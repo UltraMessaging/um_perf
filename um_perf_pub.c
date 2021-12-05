@@ -30,7 +30,9 @@
 #include "lbm/lbm.h"
 #include "um_perf.h"
 
+#if defined(PRINT4)
 void histo_print4();
+#endif
 
 
 /* Command-line options and their defaults. String defaults are set
@@ -66,7 +68,7 @@ int cur_flight_size;
 int max_flight_size;
 
 
-char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-p persist_mode] [-r rate] [-t topic] [-w warmup_loops,warmup_rate] [-x xml_config]";
+char usage_str[] = "Usage: um_perf_pub [-h] [-a affinity_cpu] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-L loss_percent] [-m msg_len] [-n num_msgs] [-p persist_mode] [-r rate] [-t topics] [-w warmup_loops,warmup_rate] [-x xml_config]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -616,7 +618,9 @@ int main(int argc, char **argv)
   result_rate = (double)(actual_sends - 1) / result_rate;
 
   /* This is for internal UM debugging. */
-  /* histo_print4(); */
+#if defined(PRINT4)
+  histo_print4();
+#endif
 
   if (hist_buckets != NULL) {
     hist_print();

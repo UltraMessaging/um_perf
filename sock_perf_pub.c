@@ -55,7 +55,6 @@ static int o_sleep_usec = 0;
 static char *o_warmup = NULL;
 
 /* Parameters parsed out from command-line options. */
-char *app_name;
 int hist_num_buckets;
 int hist_ns_per_bucket;
 struct in_addr iface_in;
@@ -68,7 +67,7 @@ perf_msg_t *perf_msg;
 int global_max_tight_sends;
 
 
-char usage_str[] = "Usage: sock_perf_pub [-h] [-a affinity_cpu] [-g group] [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs] [-s store_list] [-r rate] [-s sleep_usec] [-w warmup_loops,warmup_rate]";
+char usage_str[] = "Usage: sock_perf_pub [-h] [-a affinity_cpu] [-g group] [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs] [-r rate] [-s sleep_usec] [-w warmup_loops,warmup_rate]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
