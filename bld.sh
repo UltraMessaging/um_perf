@@ -16,16 +16,20 @@ fi
 
 gcc -Wall -g $LIBS \
     -o um_perf_jitter cprt.c um_perf_jitter.c
-if [ $? -ne 0 ]; then echo um_perf_jitter.c; exit 1; fi
+if [ $? -ne 0 ]; then echo error in um_perf_jitter.c; exit 1; fi
 
 gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -L $LBM/lib -l lbm $LIBS \
     -o um_perf_pub cprt.c um_perf_pub.c
-if [ $? -ne 0 ]; then echo um_perf_pub.c; exit 1; fi
+if [ $? -ne 0 ]; then echo error in um_perf_pub.c; exit 1; fi
 
 gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -L $LBM/lib -l lbm $LIBS \
     -o um_perf_sub cprt.c um_perf_sub.c
-if [ $? -ne 0 ]; then echo um_perf_sub.c; exit 1; fi
+if [ $? -ne 0 ]; then echo error in um_perf_sub.c; exit 1; fi
 
 gcc -Wall -g $LIBS \
     -o sock_perf_pub cprt.c sock_perf_pub.c
-if [ $? -ne 0 ]; then echo sock_perf_pub.c; exit 1; fi
+if [ $? -ne 0 ]; then echo error in sock_perf_pub.c; exit 1; fi
+
+gcc -Wall -g $LIBS \
+    -o sock_perf_pub2 cprt.c sock_perf_pub2.c
+if [ $? -ne 0 ]; then echo error in sock_perf_pub2.c; exit 1; fi
