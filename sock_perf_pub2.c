@@ -97,7 +97,7 @@ void help() {
       "  -r rate : messages per second to send [%d]\n"
       "  -s sleep_usec : microseconds to sleep between sends [%d]]\n"
       "  -w warmup_loops,warmup_rate : messages to send before measurement [%s]\n"
-      , o_affinity_cpu, o_group_src, o_group_rcv, o_histogram, o_interface, o_msg_len
+      , o_affinity_cpu, o_group_rcv, o_group_src, o_histogram, o_interface, o_msg_len
       , o_num_msgs, o_rate, o_sleep_usec, o_warmup
   );
   CPRT_NET_CLEANUP;
