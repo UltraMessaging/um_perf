@@ -304,14 +304,17 @@ void init_rcv_sock(int rcv_sock)
 }  /* init_rcv_sock */
 
 
-CPRT_THREAD_ENTRYPOINT context_thread(void *in_arg)
+int rcv_sock;
+int pipe_fds[2];  /* pipe[0] is read side, pipe[1] is write side. */
+int epoll_fd;
+struct epoll_event event;
+
+void context_init()
 {
   /* Create read socket (like the TR socket). */
-  int rcv_sock;
   CPRT_EM1(rcv_sock = socket(PF_INET,SOCK_DGRAM,0));
   init_rcv_sock(rcv_sock);
 
-  int pipe_fds[2];  /* pipe[0] is read side, pipe[1] is write side. */
   CPRT_EOK0(pipe(pipe_fds));
   /* Set pipe non-blocking. */
   int flags;
@@ -319,9 +322,7 @@ CPRT_THREAD_ENTRYPOINT context_thread(void *in_arg)
   flags |= O_NONBLOCK | O_NDELAY;
   CPRT_EM1(fcntl(pipe_fds[0], F_SETFL, flags));
 
-  int epoll_fd;
   CPRT_EM1(epoll_fd = epoll_create(1024));
-  struct epoll_event event;
 
   event.events = EPOLLIN;
   event.data.fd = rcv_sock;
@@ -330,12 +331,16 @@ CPRT_THREAD_ENTRYPOINT context_thread(void *in_arg)
   event.events = EPOLLIN;
   event.data.fd = pipe_fds[0];
   CPRT_EOK0(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipe_fds[0], &event));
+}  /* context_init */
 
+CPRT_THREAD_ENTRYPOINT context_thread(void *in_arg)
+{
   while (! exit_context) {
 #define MAX_FDS 8
     struct epoll_event rtn_events[MAX_FDS];
     int epoll_rtn;
-    CPRT_EOK0(epoll_rtn = epoll_wait(epoll_fd, rtn_events, MAX_FDS, 500));
+    CPRT_EM1(epoll_rtn = epoll_wait(epoll_fd, rtn_events, MAX_FDS, 500));
+    ASSRT(epoll_rtn == 0);
   }
 
   CPRT_EOK0(close(rcv_sock));
@@ -494,6 +499,7 @@ int main(int argc, char **argv)
 
   CPRT_THREAD_T ctx_thread_id;
   if (strlen(o_group_rcv) > 0) {
+    context_init();
     exit_context = 0;
     CPRT_THREAD_CREATE(ctx_thread_id, context_thread, NULL);
   }
