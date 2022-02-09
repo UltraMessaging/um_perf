@@ -484,7 +484,7 @@ actual_sends=50000000, duration_ns=33471056772, result_rate=1493827.946354, glob
 ````
 Since the requested rate is 999M msgs/sec, which is far greater than line rate,
 the publisher sends most of its messages in a tight loop as fast as it can,
-with a resulting rate of 1.519M msgs/sec.
+with a resulting rate of 1.49M msgs/sec.
 
 #### Test 2: Single SPP Store
 
