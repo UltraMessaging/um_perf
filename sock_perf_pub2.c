@@ -256,7 +256,9 @@ void hist_print()
   }
   printf("o_histogram=%s, hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
       o_histogram, hist_overflows, hist_min_sample, hist_max_sample);
-  uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
+
+  uint64_t average_sample = (hist_num_samples == 0) ?
+      0 : hist_sample_sum / (uint64_t)hist_num_samples;
   printf("hist_num_samples=%d, average_sample=%d,\n",
       hist_num_samples, (int)average_sample);
 }  /* hist_print */
@@ -546,12 +548,16 @@ int main(int argc, char **argv)
   if (hist_buckets != NULL) {
     hist_init();  /* Zero out data from warmup period. */
   }
-  if (o_separate_send_thread_cpu > -1) {
+  if (o_separate_send_thread_cpu == -1) {
     CPRT_GETTIME(&start_ts);
     actual_sends = send_loop(src_sock, o_num_msgs, o_rate);
     CPRT_GETTIME(&end_ts);
   }
   else {
+    sst_src_sock = src_sock;
+    sst_num_sends = o_num_msgs;
+    sst_sends_per_sec = o_rate;
+
     CPRT_THREAD_T separate_send_thread_id;
     CPRT_THREAD_CREATE(separate_send_thread_id, separate_send_thread, NULL);
     CPRT_THREAD_JOIN(separate_send_thread_id);  /* wait for completion */

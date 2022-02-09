@@ -484,6 +484,7 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
         perf_msg = (perf_msg_t *)ssrc_buffs[local_cur_src];
         /* Construct message in shared memory buffer. */
         perf_msg->msg_num = num_sent;
+        perf_msg->flags = 0;
 
         struct timespec send_start_ts;
         if (do_histogram) {
