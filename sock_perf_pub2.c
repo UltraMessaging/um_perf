@@ -48,7 +48,7 @@
 /* Command-line options and their defaults. String defaults are set
  * in "get_my_opts()".
  */
-static int o_affinity_cpu = -1;
+static int o_affinity_cpu_main = -1;
 static char *o_group_rcv = NULL;
 static char *o_group_src = NULL;  /* -G */
 static char *o_histogram = NULL;  /* -H */
@@ -56,6 +56,7 @@ static char *o_interface = NULL;
 static int o_msg_len = 0;
 static int o_num_msgs = 0;
 static int o_rate = 0;
+static int o_separate_send_thread_cpu = -1;
 static int o_sleep_usec = 0;
 static char *o_warmup = NULL;
 
@@ -74,7 +75,7 @@ int global_max_tight_sends;
 int exit_context;
 
 
-char usage_str[] = "Usage: sock_perf_pub [-h] [-a affinity_cpu] [-G group_rcv] [-g group_src] [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs] [-r rate] [-s sleep_usec] [-w warmup_loops,warmup_rate]";
+char usage_str[] = "Usage: sock_perf_pub [-h] [-a affinity_cpu_main] [-G group_rcv] [-g group_src] [-H hist_num_buckets,hist_ns_per_bucket] [-i interface] [-m msg_len] [-n num_msgs] [-r rate] [-S separate_send_thread_cpu] [-s sleep_usec] [-w warmup_loops,warmup_rate]";
 
 void usage(char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
@@ -87,7 +88,7 @@ void help() {
   fprintf(stderr, "%s\n", usage_str);
   fprintf(stderr, "where:\n"
       "  -h : print help\n"
-      "  -a affinity_cpu : bitmap for CPU affinity for send thread [%d]\n"
+      "  -a affinity_cpu_main : affinity CPU number for main thread [%d]\n"
       "  -G group_rcv : multicast group address to receive [%s]\n"
       "  -g group_src : multicast group address to send [%s]\n"
       "  -H hist_num_buckets,hist_ns_per_bucket : send time histogram [%s]\n"
@@ -95,9 +96,11 @@ void help() {
       "  -m msg_len : message length [%d]\n"
       "  -n num_msgs : number of messages to send [%d]\n"
       "  -r rate : messages per second to send [%d]\n"
+      "  -S separate_send_thread_cpu : use separate thread for sending messages\n"
+      "       and set its affinity CPU number.\n"
       "  -s sleep_usec : microseconds to sleep between sends [%d]]\n"
       "  -w warmup_loops,warmup_rate : messages to send before measurement [%s]\n"
-      , o_affinity_cpu, o_group_rcv, o_group_src, o_histogram, o_interface, o_msg_len
+      , o_affinity_cpu_main, o_group_rcv, o_group_src, o_histogram, o_interface, o_msg_len
       , o_num_msgs, o_rate, o_sleep_usec, o_warmup
   );
   CPRT_NET_CLEANUP;
@@ -117,10 +120,10 @@ void get_my_opts(int argc, char **argv)
   o_interface = CPRT_STRDUP("");
   o_warmup = CPRT_STRDUP("0,0");
 
-  while ((opt = getopt(argc, argv, "ha:G:g:H:i:m:n:r:s:w:")) != EOF) {
+  while ((opt = getopt(argc, argv, "ha:G:g:H:i:m:n:r:S:s:w:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
+      case 'a': CPRT_ATOI(optarg, o_affinity_cpu_main); break;
       case 'G': free(o_group_rcv); o_group_rcv = CPRT_STRDUP(optarg); break;
       case 'g': free(o_group_src); o_group_src = CPRT_STRDUP(optarg); break;
       case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
@@ -128,6 +131,7 @@ void get_my_opts(int argc, char **argv)
       case 'm': CPRT_ATOI(optarg, o_msg_len); break;
       case 'n': CPRT_ATOI(optarg, o_num_msgs); break;
       case 'r': CPRT_ATOI(optarg, o_rate); break;
+      case 'S': CPRT_ATOI(optarg, o_separate_send_thread_cpu); break;
       case 's': CPRT_ATOI(optarg, o_sleep_usec); break;
       case 'w': free(o_warmup); o_warmup = CPRT_STRDUP(optarg); break;
       default: usage(NULL);
@@ -466,11 +470,33 @@ int send_loop(int src_sock, int num_sends, uint64_t sends_per_sec)
 }  /* send_loop */
 
 
+int sst_src_sock;
+int sst_num_sends;
+int sst_sends_per_sec;
+
+struct timespec start_ts;  /* struct timespec is used by clock_gettime(). */
+struct timespec end_ts;
+
+CPRT_THREAD_ENTRYPOINT separate_send_thread(void *in_arg)
+{
+  uint64_t cpuset;
+
+  CPRT_CPU_ZERO(&cpuset);
+  CPRT_CPU_SET(o_separate_send_thread_cpu, &cpuset);
+  cprt_set_affinity(cpuset);
+
+  CPRT_GETTIME(&start_ts);
+  send_loop(sst_src_sock, sst_num_sends, sst_sends_per_sec);
+  CPRT_GETTIME(&end_ts);
+
+  CPRT_THREAD_EXIT;
+  return 0;
+}  /* separate_send_thread */
+
+
 int main(int argc, char **argv)
 {
   uint64_t cpuset;
-  struct timespec start_ts;  /* struct timespec is used by clock_gettime(). */
-  struct timespec end_ts;
   uint64_t duration_ns;
   int actual_sends;
   double result_rate;
@@ -485,8 +511,8 @@ int main(int argc, char **argv)
   }
 
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_cpu=%d, o_group_rcv=%s, o_group_src=%s, o_histogram=%s, o_interface=%s, o_msg_len=%d, o_num_msgs=%d, o_rate=%d, o_sleep_usec=%d, o_warmup=%s, \n",
-      o_affinity_cpu, o_group_rcv, o_group_src, o_histogram, o_interface, o_msg_len, o_num_msgs, o_rate, o_sleep_usec, o_warmup);
+  printf("o_affinity_cpu_main=%d, o_group_rcv=%s, o_group_src=%s, o_histogram=%s, o_interface=%s, o_msg_len=%d, o_num_msgs=%d, o_rate=%d, o_sleep_usec=%d, o_warmup=%s, \n",
+      o_affinity_cpu_main, o_group_rcv, o_group_src, o_histogram, o_interface, o_msg_len, o_num_msgs, o_rate, o_sleep_usec, o_warmup);
 
   perf_msg = (perf_msg_t *)malloc(o_msg_len);
   CPRT_SNPRINTF((char *)perf_msg, o_msg_len - 1, "sock_perf_pub,sock_perf_pub,sock_perf_pub,sock_perf_pub,");
@@ -505,9 +531,9 @@ int main(int argc, char **argv)
   }
 
   /* Pin time-critical thread (sending thread) to requested CPU core. */
-  if (o_affinity_cpu > -1) {
+  if (o_affinity_cpu_main > -1) {
     CPRT_CPU_ZERO(&cpuset);
-    CPRT_CPU_SET(o_affinity_cpu, &cpuset);
+    CPRT_CPU_SET(o_affinity_cpu_main, &cpuset);
     cprt_set_affinity(cpuset);
   }
 
@@ -520,9 +546,17 @@ int main(int argc, char **argv)
   if (hist_buckets != NULL) {
     hist_init();  /* Zero out data from warmup period. */
   }
-  CPRT_GETTIME(&start_ts);
-  actual_sends = send_loop(src_sock, o_num_msgs, o_rate);
-  CPRT_GETTIME(&end_ts);
+  if (o_separate_send_thread_cpu > -1) {
+    CPRT_GETTIME(&start_ts);
+    actual_sends = send_loop(src_sock, o_num_msgs, o_rate);
+    CPRT_GETTIME(&end_ts);
+  }
+  else {
+    CPRT_THREAD_T separate_send_thread_id;
+    CPRT_THREAD_CREATE(separate_send_thread_id, separate_send_thread, NULL);
+    CPRT_THREAD_JOIN(separate_send_thread_id);  /* wait for completion */
+  }
+
   CPRT_DIFF_TS(duration_ns, end_ts, start_ts);
 
   result_rate = (double)(duration_ns);
