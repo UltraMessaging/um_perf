@@ -361,6 +361,9 @@ Here is an excerpt:
                 <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
 ...
 ````
+Search this file for "10.29" to find all lines that contain a network address.
+Change them for your network.
+
 Search this file for "239" to find all lines that contain multicast groups,
 and "10.29" for other site-specific IPs.
 
