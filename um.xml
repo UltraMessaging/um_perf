@@ -14,6 +14,7 @@
         <option name="fd_management_type" default-value="epoll"/>
         <option name="multiple_receive_maximum_datagrams" default-value="100"/>
         <option name="transport_lbtrm_recycle_receive_buffers" default-value="1"/>
+        <!-- option name="file_descriptor_management_behavior" default-value="busy_wait"/-->
       </options>
       <options type="source">
         <option name="transport" default-value="lbtrm"/>
@@ -38,7 +39,9 @@
         <option name="resolver_query_minimum_initial_interval" default-value="0"/>
         <option name="resolver_query_maximum_initial_interval" default-value="0"/>
         <option name="resolution_number_of_sources_query_threshold" default-value="1"/>
-        <option name="transport_lbtrm_activity_timeout" default-value="5000"/>
+        <!-- To make testing quicker, time out LBTRM after 5.2 sec (lbmpong sleeps
+             5 sec before first send; don't time out too soon). -->
+        <option name="transport_lbtrm_activity_timeout" default-value="5200"/>
       </options>
     </template>
   </templates>
@@ -53,7 +56,17 @@
                 <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
               </options>
             </topic>
+            <topic topicname="lbmpong/ping">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+              </options>
+            </topic>
             <topic topicname="topic2">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
+              </options>
+            </topic>
+            <topic topicname="lbmpong/pong">
               <options type="source">
                 <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
               </options>
