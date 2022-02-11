@@ -246,7 +246,6 @@ The um_perf tools' "-a" options expect the actual CPU number.
 ### Requirements
 
 1. 5 Linux-based hosts (X86, 64-bit).
-hyperthreading turned off,
 16 gigabytes or more memory.
 At least one host must have a fast disk.
 These should be "bare metal" machines, NOT virtual machines.
