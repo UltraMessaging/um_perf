@@ -94,13 +94,17 @@ THE LIKELIHOOD OF SUCH DAMAGES.
 
 See https://github.com/UltraMessaging/um_perf for code and documentation.
 
-## TESTS
+## INTRODUCTION
 
 Informatica used the tools in this repository to measure the
 maximum-sustainable message rate for streaming and persistent sources,
 the results of which are outlined in this document.
 The primary motivation for these tools is to measure persistence,
 but these tools can be used for a variety of purposes.
+
+For latency testing, see https://github.com/UltraMessaging/um_lat
+
+## TESTS
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
 but not enough to run a representative test of persistence.

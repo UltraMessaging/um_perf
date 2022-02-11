@@ -3,7 +3,7 @@
  * See https://github.com/fordsfords/cprt
  */
 /*
-# This code and its documentation is Copyright 2002-2021 Steven Ford
+# This code and its documentation is Copyright 2002-2022 Steven Ford
 # and licensed "public domain" style under Creative Commons "CC0":
 #   http://creativecommons.org/publicdomain/zero/1.0/
 # To the extent possible under law, the contributors to this project have

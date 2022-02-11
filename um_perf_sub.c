@@ -1,6 +1,6 @@
 /* um_perf_sub.c - performance measurement tool. */
 /*
-  Copyright (c) 2021 Informatica Corporation
+  Copyright (c) 2021-2022 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
   purpose, including commercial applications, according to the terms laid
   out in the Software License Agreement.
