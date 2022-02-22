@@ -252,7 +252,7 @@ int main(int argc, char **argv)
   /* Set some options in code. */
   E(lbm_rcv_topic_attr_create(&rcv_attr));
 
-  E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x6"));
+  E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x7"));
 
   /* Parse out the individual topics in o_topics and create receiver objects. */
   char *strtok_context;

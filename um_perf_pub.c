@@ -234,6 +234,7 @@ void hist_create()
 void hist_input(int in_sample)
 {
   ASSRT(hist_buckets != NULL);
+  ASSRT(in_sample > 0);
 
   hist_num_samples++;
   hist_sample_sum += in_sample;
@@ -354,6 +355,8 @@ void create_sources(lbm_context_t *ctx)
 
   /* Set some options in code. */
   E(lbm_src_topic_attr_create(&src_attr));
+
+  E(lbm_src_topic_attr_str_setopt(src_attr, "ume_session_id", "0x6"));
 
   /* Get notified for forced reclaims (should not happen). */
   lbm_ume_src_force_reclaim_func_t force_reclaim_cb_conf;
@@ -595,7 +598,7 @@ int main(int argc, char **argv)
     sleep(1);
   }
 
-  if (warmup_loops > 1) {
+  if (warmup_loops > 0) {
     /* Warmup loops to get CPU caches loaded. */
     send_loop(warmup_loops, warmup_rate);
   }
