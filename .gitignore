@@ -11,6 +11,8 @@ usb_perf
 um_perf_pub
 um_perf_sub
 sock_perf_sub
+sock_perf_pub
+sock_perf_pub2
 
 # UM-specific overhead files
 labbox.sh
