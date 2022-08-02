@@ -1,35 +1,25 @@
 #!/bin/sh
 # bld.sh - build the programs on Linux.
 
-. ./lbm.sh
-LBM=$LBM_PLATFORM
-
-# LBM=$HOME/UMP_6.14/Linux-glibc-2.17-x86_64  # Modify according to your needs.
-
-# LBM=$HOME/UMP_6.10.0.1/Linux-glibc-2.5-x86_64  # Modify according to your needs.
+. $HOME/lbm.sh
 
 if [ "`uname`" = "Darwin" ]; then :
-  LIBS="-l pthread -l m"
+  LIBS="-L $LBM/lib -l lbm -l pthread -l m"
 else : 
-  LIBS="-l pthread -l m -l rt"
+  LIBS="-L $LBM/lib -l lbm -pthread -l m -l rt"
 fi
 
-gcc -Wall -g $LIBS \
-    -o um_perf_jitter cprt.c um_perf_jitter.c
+gcc -Wall -g -o um_perf_jitter cprt.c um_perf_jitter.c $LIBS 
 if [ $? -ne 0 ]; then echo error in um_perf_jitter.c; exit 1; fi
 
-gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -L $LBM/lib -l lbm $LIBS \
-    -o um_perf_pub cprt.c um_perf_pub.c
+gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -o um_perf_pub cprt.c um_perf_pub.c $LIBS
 if [ $? -ne 0 ]; then echo error in um_perf_pub.c; exit 1; fi
 
-gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -L $LBM/lib -l lbm $LIBS \
-    -o um_perf_sub cprt.c um_perf_sub.c
+gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -o um_perf_sub cprt.c um_perf_sub.c $LIBS
 if [ $? -ne 0 ]; then echo error in um_perf_sub.c; exit 1; fi
 
-gcc -Wall -g $LIBS \
-    -o sock_perf_pub cprt.c sock_perf_pub.c
+gcc -Wall -g -o sock_perf_pub cprt.c sock_perf_pub.c $LIBS
 if [ $? -ne 0 ]; then echo error in sock_perf_pub.c; exit 1; fi
 
-gcc -Wall -g $LIBS \
-    -o sock_perf_pub2 cprt.c sock_perf_pub2.c
+gcc -Wall -g -o sock_perf_pub2 cprt.c sock_perf_pub2.c $LIBS
 if [ $? -ne 0 ]; then echo error in sock_perf_pub2.c; exit 1; fi

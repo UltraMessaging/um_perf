@@ -31,7 +31,6 @@
 #if ! defined(_WIN32)
   #include <sys/types.h>
   #include <sys/socket.h>
-  #include <sys/socket.h>
   #include <netinet/in.h>
   #include <arpa/inet.h>
   #include <stdlib.h>
@@ -108,18 +107,18 @@ void get_my_opts(int argc, char **argv)
   o_interface = CPRT_STRDUP("");
   o_warmup = CPRT_STRDUP("0,0");
 
-  while ((opt = getopt(argc, argv, "ha:g:H:i:m:n:r:s:w:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "ha:g:H:i:m:n:r:s:w:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
-      case 'g': free(o_group); o_group = CPRT_STRDUP(optarg); break;
-      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
-      case 'i': free(o_interface); o_interface = CPRT_STRDUP(optarg); break;
-      case 'm': CPRT_ATOI(optarg, o_msg_len); break;
-      case 'n': CPRT_ATOI(optarg, o_num_msgs); break;
-      case 'r': CPRT_ATOI(optarg, o_rate); break;
-      case 's': CPRT_ATOI(optarg, o_sleep_usec); break;
-      case 'w': free(o_warmup); o_warmup = CPRT_STRDUP(optarg); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_cpu); break;
+      case 'g': free(o_group); o_group = CPRT_STRDUP(cprt_optarg); break;
+      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(cprt_optarg); break;
+      case 'i': free(o_interface); o_interface = CPRT_STRDUP(cprt_optarg); break;
+      case 'm': CPRT_ATOI(cprt_optarg, o_msg_len); break;
+      case 'n': CPRT_ATOI(cprt_optarg, o_num_msgs); break;
+      case 'r': CPRT_ATOI(cprt_optarg, o_rate); break;
+      case 's': CPRT_ATOI(cprt_optarg, o_sleep_usec); break;
+      case 'w': free(o_warmup); o_warmup = CPRT_STRDUP(cprt_optarg); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
@@ -171,7 +170,7 @@ void get_my_opts(int argc, char **argv)
   free(work_str);
   if (warmup_loops > 0) { ASSRT(warmup_rate > 0); }
 
-  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
+  if (cprt_optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 

@@ -302,17 +302,19 @@ The files can be obtained by cloning the repository using "git" or
 https://github.com/UltraMessaging/um_perf and clicking the green "Code"
 button (select "Download ZIP").
 
-To build the tools, the shell script "bld.sh" should be modified.
+To build the tools, the "bld.sh" scrit can be used.
+It assumes the existance of a script "lbm.sh" in your home directory
+that exports three environment variables: "LBM", "LD_LIBRARY_PATH",
+and "LBM_LICENSE_INFO".
 For example:
 ````
 #!/bin/sh
-# bld.sh - build the programs on Linux.
+# lbm.sh - set up environment for Ultra Messaging
 
-LBM=$HOME/UMP_6.14/Linux-glibc-2.17-x86_64  # Modify according to your needs.
-...
+export LBM=$HOME/UMP_6.14/Linux-glibc-2.17-x86_64
+export LD_LIBRARY_PATH="$LBM/lib"
+export LBM_LICENSE_INFO="Product=LBM,UME:Organization=Your name here:Expiration-Date=XXXXX:License-Key=XXXX XXXX XXXX XXXX"
 ````
-The assignment to the shell variable "LBM" should be changed to the location
-of your UM installation.
 
 After running the "bld.sh" script,
 update the "PATH" environment variable to include the

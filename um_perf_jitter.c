@@ -71,19 +71,19 @@ void get_my_opts(int argc, char **argv)
   /* Set defaults for string options. */
   o_histogram = CPRT_STRDUP("0,0");
 
-  while ((opt = getopt(argc, argv, "ha:H:j:m:s:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "ha:H:j:m:s:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
-      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
-      case 'j': CPRT_ATOI(optarg, o_jitter_loops); break;
-      case 'm': CPRT_ATOI(optarg, o_malloc_size); break;
-      case 's': CPRT_ATOI(optarg, o_spin_cnt); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_cpu); break;
+      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(cprt_optarg); break;
+      case 'j': CPRT_ATOI(cprt_optarg, o_jitter_loops); break;
+      case 'm': CPRT_ATOI(cprt_optarg, o_malloc_size); break;
+      case 's': CPRT_ATOI(cprt_optarg, o_spin_cnt); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
 
-  if (optind != argc) { usage("Extra parameter(s)"); }
+  if (cprt_optind != argc) { usage("Extra parameter(s)"); }
 
   char *strtok_context;
 

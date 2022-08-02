@@ -83,20 +83,20 @@ void get_my_opts(int argc, char **argv)
   o_topics = CPRT_STRDUP("");
   o_xml_config = CPRT_STRDUP("");
 
-  while ((opt = getopt(argc, argv, "ha:c:Ep:s:t:x:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "ha:c:Ep:s:t:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_cpu); break;
       /* Allow -c to be repeated, loading each config file in succession. */
       case 'c': free(o_config);
-                o_config = CPRT_STRDUP(optarg);
+                o_config = CPRT_STRDUP(cprt_optarg);
                 E(lbm_config(o_config));  /* Allow multiple calls. */
                 break;
       case 'E': o_exit_on_eos = 1; break;
-      case 'p': free(o_persist); o_persist = CPRT_STRDUP(optarg); break;
-      case 's': CPRT_ATOI(optarg, o_spin_cnt); break;
-      case 't': free(o_topics); o_topics = CPRT_STRDUP(optarg); break;
-      case 'x': free(o_xml_config); o_xml_config = CPRT_STRDUP(optarg); break;
+      case 'p': free(o_persist); o_persist = CPRT_STRDUP(cprt_optarg); break;
+      case 's': CPRT_ATOI(cprt_optarg, o_spin_cnt); break;
+      case 't': free(o_topics); o_topics = CPRT_STRDUP(cprt_optarg); break;
+      case 'x': free(o_xml_config); o_xml_config = CPRT_STRDUP(cprt_optarg); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
@@ -123,7 +123,7 @@ void get_my_opts(int argc, char **argv)
     E(lbm_config_xml_file(o_xml_config, app_name));
   }
 
-  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
+  if (cprt_optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 
