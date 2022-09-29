@@ -38,7 +38,6 @@ and streaming.
     - [um_perf_sub](#um_perf_sub)
       - [Persist Mode](#persist-mode)
       - [Spin Count](#spin-count)
-    - [sock_perf_sub](#sock_perf_sub)
     - [Affinity](#affinity)
   - [MEASUREMENT OUTLIERS](#measurement-outliers)
     - [Interruptions](#interruptions)
@@ -64,6 +63,7 @@ and streaming.
     - [Host S1](#host-s1)
     - [Host S2](#host-s2)
     - [Host S3](#host-s3)
+  - [Unrelated Files](#unrelated-files)
 
 <sup>(table of contents from https://luciopaiva.com/markdown-toc/)</sup>
 
@@ -1800,3 +1800,27 @@ mamba:um_perf$ vmstat -s
 mamba:um_perf$ cat /etc/centos-release
 CentOS Linux release 7.9.2009 (Core)
 ````
+
+## Unrelated Files
+
+These files are not central to the main purpose of this repository.
+They do not measure the performance of Ultra Messaging.
+They were developed to measure the performance of certain
+Linux system calls, independent of UM.
+I didn't want to just throw them away when I was done,
+so I keep them in this repository.
+
+* sock_perf_pub.c - this program does not use UM at all.
+It attempts to simulate approximately how UM use sockets.
+It is not central to the main purpose of the repository, and is
+for experimental and exploratory purposes.
+
+* sock_perf_pub2.c - this program does not use UM at all.
+It attempts to simulate approximately how UM use sockets.
+It is not central to the main purpose of the repository, and is
+for experimental and exploratory purposes.
+
+* sock_perf_sub.c - this program does not use UM at all.
+It attempts to simulate approximately how UM use sockets.
+It is not central to the main purpose of the repository, and is
+for experimental and exploratory purposes.

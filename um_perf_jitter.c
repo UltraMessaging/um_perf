@@ -1,4 +1,6 @@
-/* um_perf_jitter.c */
+/* um_perf_jitter.c - Tool to make a rough measurement of the underlying
+ *   jitter of a server.
+ * See https://github.com/UltraMessaging/um_perf */
 /*
   Copyright (c) 2021-2022 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any

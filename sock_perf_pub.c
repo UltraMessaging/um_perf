@@ -1,4 +1,10 @@
-/* sock_perf_pub.c - performance measurement tool. */
+/* sock_perf_pub.c - performance measurement tool.
+ * See https://github.com/UltraMessaging/um_perf */
+
+/* This tool attempts to simulate approximately how UM uses sockets.
+ * It is not central to the main purpose of the repository, and is
+ * for experimental and exploratory purposes. */
+
 /*
   Copyright (c) 2021-2022 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
