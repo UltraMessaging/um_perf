@@ -43,7 +43,7 @@ int cprt_timeofday(struct cprt_timeval *tv, void *unused_tz)
    * in 100ns ticks.  */
   static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
 
-  GetSystemTimeAsFileTime (&tfile);
+  GetSystemTimeAsFileTime(&tfile);
   time = (uint64_t)tfile.dwLowDateTime;
   time += ((uint64_t)tfile.dwHighDateTime) << 32;
 
@@ -186,6 +186,30 @@ int cprt_try_affinity(uint64_t in_mask)
 }  /* cprt_try_affinity */
 
 
+#define CPRT_MAX_EVENTS 1024
+int cprt_num_events = 0;
+int cprt_events[CPRT_MAX_EVENTS];
+void cprt_event(int event)
+{
+  cprt_events[(CPRT_ATOMIC_INC_VAL(&cprt_num_events) - 1) % CPRT_MAX_EVENTS] =
+      event;
+}  /* cprt_event */
+
+void cprt_dump_events(FILE *fd)
+{
+  int i, n;
+  n = cprt_num_events;
+  printf("cprt_num_events=%d\n", n);
+  for (i = 1; i <= CPRT_MAX_EVENTS; i++) {
+    fprintf(fd, "  cprt_event[%d] = %09d\n",
+        (n - i), cprt_events[(n - i) % CPRT_MAX_EVENTS]);
+    if (n == i) {
+      break;  /* There were less than CPRT_MAX_EVENTS events. */
+    }
+  }
+}  /* cprt_dump_events */
+
+
 /* Portable getopt(). */
 char* cprt_optarg;
 int cprt_optopt;
@@ -208,7 +232,7 @@ int cprt_getopt(int argc, char *const argv[], const char *optstring)
 
   argv_str = argv[cprt_optind];
 
-  argv_len = strlen(argv_str);
+  argv_len = (int)strlen(argv_str);
   if (argv_len < 2) {
     /* A single character, even if a '-', is not an option. Its an arg. */
     return EOF;
