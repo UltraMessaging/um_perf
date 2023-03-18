@@ -1,7 +1,7 @@
 #!/bin/sh
 # bld.sh - build the programs on Linux.
 
-. $HOME/lbm.sh
+. ./lbm.sh
 
 if [ "`uname`" = "Darwin" ]; then :
   LIBS="-L $LBM/lib -l lbm -l pthread -l m"
