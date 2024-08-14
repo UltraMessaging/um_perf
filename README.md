@@ -5,69 +5,64 @@ and streaming.
 
 # Table of contents
 
-- [um_perf - test programs to measure the performance of Ultra Messaging.](#um_perf---test-programs-to-measure-the-performance-of-ultra-messaging)
-  - [COPYRIGHT AND LICENSE](#copyright-and-license)
-  - [REPOSITORY](#repository)
-  - [TESTS](#tests)
-  - [RESULTS](#results)
-    - [Reproduction](#reproduction)
-    - [Requirements](#requirements)
-    - [Choose CPUs](#choose-cpus)
-    - [Build Test Tools](#build-test-tools)
-    - [Update Configuration File](#update-configuration-file)
-      - [UM Configuration File](#um-configuration-file)
-      - [Store Configuration Files](#store-configuration-files)
-    - [Measure System Interruptions](#measure-system-interruptions)
-    - [Measure Maximum Sustainable Message Rates](#measure-maximum-sustainable-message-rates)
-      - [Test 1: Streaming](#test-1-streaming)
-      - [Test 2: Single SPP Store](#test-2-single-spp-store)
-      - [Test 3: Single RPP Store](#test-3-single-rpp-store)
-      - [Test 4: Quorum/Consensus](#test-4-quorumconsensus)
-      - [Test 5: Load Balance](#test-5-load-balance)
-      - [Test 6: Three-Source Streaming](#test-6-three-source-streaming)
-      - [Test 7: Single SPP Store, Application Batching](#test-7-single-spp-store-application-batching)
-      - [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)
-      - [Test 9: RPP Quorum/Consensus, Application Batching](#test-9-rpp-quorumconsensus-application-batching)
-      - [Test 10: Load Balance, Application Batching](#test-10-load-balance-application-batching)
-  - [WARMUP](#warmup)
-  - [TOOL USAGE NOTES](#tool-usage-notes)
-    - [um_perf_pub](#um_perf_pub)
-      - [Linger Time](#linger-time)
-      - [Warmup](#warmup)
-      - [Histogram](#histogram)
-    - [um_perf_sub](#um_perf_sub)
-      - [Persist Mode](#persist-mode)
-      - [Spin Count](#spin-count)
-    - [Affinity](#affinity)
-  - [MEASUREMENT OUTLIERS](#measurement-outliers)
-    - [Interruptions](#interruptions)
-  - [CODE NOTES](#code-notes)
-    - [Error Handling](#error-handling)
-    - [Portability](#portability)
-    - [CPRT_ATOI](#cprt_atoi)
-    - [CPRT_DIFF_TS](#cprt_diff_ts)
-    - [send_loop()](#send_loop)
-  - [Notes on Going Fast](#notes-on-going-fast)
-    - [RPP Vs. SPP](#rpp-vs-spp)
-    - [Core Count and Network Interfaces](#core-count-and-network-interfaces)
-    - [Intelligent Batching](#intelligent-batching)
-    - [Burst VS. Sustain?](#burst-vs-sustain)
-      - [Loss Recovery at 1.64M Msgs/Sec](#loss-recovery-at-164m-msgssec)
-    - [Exceeding Line Rate?](#exceeding-line-rate)
-    - [Busy Looping](#busy-looping)
-    - [Application Optimizations](#application-optimizations)
-    - [Host Optimizations](#host-optimizations)
-  - [INFORMATICA TEST HARDWARE](#informatica-test-hardware)
-    - [Host 1](#host-1)
-    - [Host 2](#host-2)
-    - [Host S1](#host-s1)
-    - [Host S2](#host-s2)
-    - [Host S3](#host-s3)
-  - [Unrelated Files](#unrelated-files)
+<!-- mdtoc-start -->
+&bull; [um_perf - test programs to measure the performance of Ultra Messaging.](#um_perf---test-programs-to-measure-the-performance-of-ultra-messaging)  
+&bull; [Table of contents](#table-of-contents)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Copyright and License](#copyright-and-license)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Repository](#repository)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Introduction](#introduction)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Tests](#tests)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Results](#results)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Reproduction](#reproduction)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Requirements](#requirements)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Choose CPUs](#choose-cpus)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Build Test Tools](#build-test-tools)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Update Configuration File](#update-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM Configuration File](#um-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Store Configuration Files](#store-configuration-files)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Measure System Interruptions](#measure-system-interruptions)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Measure Maximum Sustainable Message Rates](#measure-maximum-sustainable-message-rates)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 1: Streaming](#test-1-streaming)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 2: Single SPP Store](#test-2-single-spp-store)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 3: Single RPP Store](#test-3-single-rpp-store)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 4: Quorum/Consensus](#test-4-quorumconsensus)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 5: Load Balance](#test-5-load-balance)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 6: Three-Source Streaming](#test-6-three-source-streaming)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 7: Single SPP Store, Application Batching](#test-7-single-spp-store-application-batching)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 8: Single RPP Store, Application Batching](#test-8-single-rpp-store-application-batching)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 9: RPP Quorum/Consensus, Application Batching](#test-9-rpp-quorumconsensus-application-batching)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test 10: Load Balance, Application Batching](#test-10-load-balance-application-batching)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Warmup](#warmup)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Tool Usage Notes](#tool-usage-notes)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_perf_pub](#um_perf_pub)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_perf_sub](#um_perf_sub)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [sock_perf_sub](#sock_perf_sub)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Affinity](#affinity)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Measurement Outliers](#measurement-outliers)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Interruptions](#interruptions)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Code Notes](#code-notes)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Error Handling](#error-handling)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Portability](#portability)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Notes on Going Fast](#notes-on-going-fast)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [RPP Vs. SPP](#rpp-vs-spp)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Core Count and Network Interfaces](#core-count-and-network-interfaces)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Intelligent Batching](#intelligent-batching)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Burst VS. Sustain?](#burst-vs-sustain)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Exceeding Line Rate?](#exceeding-line-rate)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Busy Looping](#busy-looping)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Application Optimizations](#application-optimizations)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host Optimizations](#host-optimizations)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Informatica Test Hardware](#informatica-test-hardware)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host 1](#host-1)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host 2](#host-2)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host S1](#host-s1)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host S2](#host-s2)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Host S3](#host-s3)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Unrelated Files](#unrelated-files)  
+<!-- TOC created by '../mdtoc/mdtoc.pl README.md' (see https://github.com/fordsfords/mdtoc) -->
+<!-- mdtoc-end -->
 
-<sup>(table of contents from https://luciopaiva.com/markdown-toc/)</sup>
-
-## COPYRIGHT AND LICENSE
+## Copyright and License
 
 All of the documentation and software included in this and any
 other Informatica Ultra Messaging GitHub repository
@@ -90,11 +85,11 @@ INDIRECT DAMAGES ARISING OUT OF OR RELATED TO THIS AGREEMENT OR THE
 TRANSACTIONS CONTEMPLATED HEREUNDER, EVEN IF INFORMATICA HAS BEEN APPRISED OF
 THE LIKELIHOOD OF SUCH DAMAGES.
 
-## REPOSITORY
+## Repository
 
 See https://github.com/UltraMessaging/um_perf for code and documentation.
 
-## INTRODUCTION
+## Introduction
 
 Informatica used the tools in this repository to measure the
 maximum-sustainable message rate for streaming and persistent sources,
@@ -104,7 +99,7 @@ but these tools can be used for a variety of purposes.
 
 For latency testing, see https://github.com/UltraMessaging/um_lat
 
-## TESTS
+## Tests
 
 The Informatica Ultra Messaging computer lab has some fast hosts,
 but not enough to run a representative test of persistence.
@@ -182,7 +177,7 @@ Onload kernel-bypass drivers were used on all hosts.
 In the results below, "K" represents 1,000; "M" represents 1,000,000;
 "G" represents 1,000,000,000 (i.e. they are not powers of 2).
 
-## RESULTS
+## Results
 
 Using load-balanced SPP Stores and application batching,
 UM persistence can easily sustain 1.5M messages/sec.
@@ -938,7 +933,7 @@ actual_sends=25000000, duration_ns=33333332926, result_rate=750000.009165, globa
 Given the send rate of 750K, and that each send contains two application
 messages, the application message rate is 1.5M messages/sec.
 
-## WARMUP
+## Warmup
 
 The publisher test tool has a command-line option:
 ````
@@ -960,7 +955,7 @@ The message rate during that warmup period should be no more than 10%
 of the maximum-sustainable message rate.
 (Our testing here extends that to 3 seconds for reliability.)
 
-## TOOL USAGE NOTES
+## Tool Usage Notes
 
 ### um_perf_pub
 
@@ -986,7 +981,7 @@ where:
   -x xml_config : XML configuration file [%s]
 ````
 
-#### Linger Time
+**Linger Time**
 
 The "-l linger_ms" command-line option introduces a delay between the
 last message sent and deletion of the UM source.
@@ -996,7 +991,7 @@ Once the source is deleted, a receiver that is behind might experience
 a type of unrecoverable loss called
 "[tail loss](https://ultramessaging.github.io/currdoc/doc/Design/fundamentalconcepts.html#tailloss)".
 
-#### Warmup
+**Warmup**
 
 When measuring performance, we recommended performing a number
 of "warmup" loops of the time-critical code.
@@ -1006,7 +1001,7 @@ the CPU caches loaded.
 The execution of those initial warmup loops is not included in the
 performance measurements.
 
-#### Histogram
+**Histogram**
 
 The "um_perf_pub" tool supports a histogram of time spent inside the UM
 "send" call (lbm_src_send or lbm_ssrc_send_ex).
@@ -1032,7 +1027,7 @@ where:
   -x xml_config : configuration file [%s]
 ````
 
-#### Persist Mode
+**Persist Mode**
 
 The "-p ''|r|s" option selects between non-persistence (streamin),
 RPP persistence, or SPP persistence.
@@ -1053,7 +1048,7 @@ all three data modes (streaming, RPP, and SPP) since the receiver simply
 conforms to the type of source.
 So for all tests, we run "um_perf_sub" with "-p r".
 
-#### Spin Count
+**Spin Count**
 
 There is an empty "for" loop inside the receiver callback:
 ````C
@@ -1125,7 +1120,7 @@ with 0x01 representing CPU number 0, 0x02 representing CPU 1,
 0x04 representing CPU 2, etc.
 The um_perf tools' "-a" options expect the actual CPU number.
 
-## MEASUREMENT OUTLIERS
+## Measurement Outliers
 
 The SmartSource transport code is written to provide a very constant
 execution time.
@@ -1169,7 +1164,7 @@ the test results are highly susceptible to interruptions.
 See [Measure System Interruptions](#measure-system-interruptions)
 for a method to measure these interruptions.
 
-## CODE NOTES
+## Code Notes
 
 We attempt to explain some of the "why"s of non-obvious parts of the code.
 
@@ -1227,7 +1222,7 @@ Also, note that the sock_perf_pub tool is *not* suitable for Windows use.
 The socket API is different enough that a separate tool is called for.
 (This work is not currently planned.)
 
-### CPRT_ATOI
+**CPRT_ATOI**
 
 CPRT_ATOI is a helper macro that is similar to the system function "atoi()"
 with three improvements:
@@ -1238,7 +1233,7 @@ with three improvements:
 
 As with the "E()" macro, it accomplishes these goals without code clutter.
 
-### CPRT_DIFF_TS
+**CPRT_DIFF_TS**
 
 CPRT_DIFF_TS is a helper macro that subtracts two "struct timespec" values, as
 returned by [clock_gettime()](https://linux.die.net/man/3/clock_gettime),
@@ -1257,7 +1252,7 @@ clock_gettime(&end_ts);
 DIFF_TS(duration_ns, end_ts, start_ts);
 ````
 
-### send_loop()
+**send_loop()**
 
 The "send_loop()" function in "um_perf_pub.c" does the work of
 sending messages at the desired rate.
@@ -1445,7 +1440,7 @@ case of ensuring that the system can sustain the expected burst rates,
 not that the planned production system will routinely maintain
 1.5M msgs/sec over long periods.
 
-#### Loss Recovery at 1.64M Msgs/Sec
+**Loss Recovery at 1.64M Msgs/Sec**
 
 In our testing, we saw zero loss.
 This is because the tests were very clean - there was only one publisher
@@ -1579,7 +1574,7 @@ Note that even without these optimizations,
 our test could send and receive at full line rate.
 So the above optimizations are recommended to provide additional headroom.
 
-## INFORMATICA TEST HARDWARE
+## Informatica Test Hardware
 
 Here are command excerpts that document the hosts used to
 perform the in-house measurements.
