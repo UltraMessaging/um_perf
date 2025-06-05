@@ -297,7 +297,7 @@ The files can be obtained by cloning the repository using "git" or
 https://github.com/UltraMessaging/um_perf and clicking the green "Code"
 button (select "Download ZIP").
 
-To build the tools, the "bld.sh" scrit can be used.
+To build the tools, the "bld.sh" script can be used.
 Note that it sources a script named "lbm.sh", which you must
 provide.
 Copy "lbm.sh.example" and insert your license key.
@@ -1034,7 +1034,7 @@ RPP persistence, or SPP persistence.
 However, this option is only used to select the application name passed
 to lbm_config_xml_file(), which in turn is used to select a group of
 configurations in the "um.xml" configuration file.
-The application names are "um_perf", "um_perf_rpp", and "umm_perf_spp"
+The application names are "um_perf", "um_perf_rpp", and "um_perf_spp"
 respectively.
 
 Note that the publisher and subscriber both select among the same three
@@ -1122,11 +1122,11 @@ The um_perf tools' "-a" options expect the actual CPU number.
 
 ## Measurement Outliers
 
-The SmartSource transport code is written to provide a very constant
+The Smart Source transport code is written to provide a very constant
 execution time.
 Dynamic memory (malloc/free) is not used during message transfer.
 There is very little cause for measurement outliers
-(jitter) in the SmartSource code itself.
+(jitter) in the Smart Source code itself.
 
 However, the measurements made at Informatica show significant outliers.
 Two environmental factors cause these outliers:
