@@ -1470,36 +1470,11 @@ and verify that the LBT-RM algorithms properly recover the loss.
 
 ### Exceeding Line Rate?
 
-Look again at [test 9 results](#test-9-load-balance-application-batching).
-Here's the output of "um_perf_pub":
+In an earlier version of this document, I demonstrated running at slightly higher than 10 Gig (I claimed 10.11).
+I speculated that the Solarflare NICs were eliminating the interpacket gap.
+On review, I made an arithmetic mistake. The actual run rate was 9.996 Gig.
 
-````
-actual_sends=50000000, duration_ns=60716897922, result_rate=823493.981267, global_max_tight_sends=49100739, max_flight_size=90382
-````
-
-Be aware that the 1420 bytes of user data are combined with overhead
-bytes from UM, UDP, and IP to produce a 1494-byte IP datagram.
-This datagram is encapsulated in an ethernet frame that adds 30 more bytes.
-And the Ethernet standard requires an interpacket gap equal to 12 bytes.
-So each frame represents 8*(1494+30+12) = 12,288 bit times.
-The publisher sent 50,000,000 of those 12,288-bit frames in 60,716,897,922 ns.
-That works out to a line rate of 10.11 gigabits per second.
-But the network should only run at 10 gigabits per second.
-How is it possible that our test ran faster than 10G?
-
-If we speculate that Solarflare eliminates the interpacket gap,
-we get 10.04 gigabits per second.
-Solarflare may not abide by the 12-byte-time interpacket gap.
-According to
-[Wikipedia](https://en.wikipedia.org/wiki/Interpacket_gap#Ethernet):
-````
-Some manufacturers design adapters with a smaller interpacket gap for
-slightly higher data transfer rates. That can lead to data loss when
-mixed with standard adaptors.
-````
-
-Informatica recommends using the same vendor's NICs for all publishers
-and subscribers of high-throughput data.
+You've heard of measure twice, cut once? Maybe calculate three times. :-)
 
 ### Busy Looping
 
