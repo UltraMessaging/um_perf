@@ -1431,8 +1431,7 @@ maximum burst message rate over a significant period,
 much longer than the expected burst durations.
 
 In this demonstration, we can sustain 1.64M msgs/sec.
-However, be aware that at this rate, the 10G Ethernet is fully saturated
-(possibly "over" saturated; see "Exceeding Line Rate" below).
+However, be aware that at this rate, the 10G Ethernet is fully saturated.
 This leaves no headroom for error recovery or future growth.
 
 Informatica assumes that the requirement to handle 1.5M msgs/sec is a
@@ -1475,6 +1474,25 @@ I speculated that the Solarflare NICs were eliminating the interpacket gap.
 On review, I made an arithmetic mistake. The actual run rate was 9.996 Gig.
 
 You've heard of measure twice, cut once? Maybe calculate three times. :-)
+
+But I might as well show the (correct) arithmetic in action.
+
+* 700-byte application payload.
+* 32-byte UM LBT-RM overhead.
+This can increase depending on the features being used.
+* 8-byte UDP overhead.
+* 20-byte IP overhead.
+This can increase depending on IP options, that's rare.
+* 14-byte Ethernet header (6 dest MAC, 6 src MAC, 2 protocol type).
+This can increase depending on Ethernet configuration (e.g. vlan tag).
+* 4-byte Ethernet FSC (CRC).
+* 8-byte Ethernet preamble plus delimiter (SFD)
+* 12-byte time Ethernet interface gap.
+
+So each 700-byte message consumes 798 byte-times = 6384 bit times.
+
+The [Test 1: Streaming](#test-1-streaming) result measured 1493827.9 messages/sec.
+Multiplying by 6384 bits per message gives 9.53 gigabits/sec.
 
 ### Busy Looping
 
