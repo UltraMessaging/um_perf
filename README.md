@@ -1330,7 +1330,7 @@ The result is that while you can have very many threads running in parallel,
 the speed of a given thread can be lower than in a host with fewer cores.
 When you are trying to maximize the throughput of a single thread,
 you may need more hosts with fewer cores each.
-Over-consolidation will lead to failure to achieve the highest throughput.
+Over-consolidation will noticably reduce throughput.
 
 The creation of virtual machines with small numbers of cores does not solve
 this issue if the underlying server hardware has low clock frequencies or
@@ -1385,17 +1385,18 @@ For example, you might have a sending thread that pulls messages off a
 queue and sends them to the messaging layer.
 After dequeuing a message, the sending thread can examine the queue to
 determine if there is another message waiting.
-If so, the application can take appropriate steps to combine the current
-message with that future message.
+If so, the application can dequeue the second message and combine it
+with the first, sending them together.
 (The details depend on the nature of the application and the type of
 messaging layer send function being used.)
-This provides a self-adaptive algorithm - at low message rates,
+
+This is a self-adapting algorithm - at low message rates,
 each message is flushed immediately without waiting.
-As the message rate increases, messages will become available more quickly
+As the message rate increases, messages will be queued more quickly
 than they can be sent individually.
 At the point where the send thread is one message behind,
-it will automatically batch two messages, which will essentially let the
-send thread catch up.
+it will automatically batch two messages, which speeds up the sending
+thread.
 
 This is how TCP can achieve very high throughputs.
 The send-side socket buffer is the "queue", and the device driver is the
