@@ -1487,7 +1487,7 @@ This can increase depending on IP options, that's rare.
 This can increase depending on Ethernet configuration (e.g. vlan tag).
 * 4-byte Ethernet FSC (CRC).
 * 8-byte Ethernet preamble plus delimiter (SFD)
-* 12-byte time Ethernet interface gap.
+* 12-byte time Ethernet interpacket gap.
 
 So each 700-byte message consumes 798 byte-times = 6384 bit times.
 
